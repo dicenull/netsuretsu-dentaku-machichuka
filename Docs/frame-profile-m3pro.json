@@ -1,0 +1,31 @@
+{
+    "utc": "2026-11-04T06:16:08.0754200Z",
+    "unity": "6000.3.13f1",
+    "graphics": "Apple M3 Pro",
+    "width": 3024,
+    "height": 1842,
+    "samples": 13413,
+    "maximumFood": 3065,
+    "peakParticles": 1167,
+    "successfulCommands": 29,
+    "collections": 3251,
+    "managedBytes": 8974336,
+    "frameMilliseconds": {
+        "median": 8.335083961486817,
+        "p95": 16.30541229248047,
+        "p99": 16.9187068939209,
+        "maximum": 50.05458450317383
+    },
+    "viewCpuMilliseconds": {
+        "median": 1.8349000215530396,
+        "p95": 3.7534000873565676,
+        "p99": 4.027900218963623,
+        "maximum": 7.256499767303467
+    },
+    "effectsCpuMilliseconds": {
+        "median": 0.06469999998807907,
+        "p95": 0.3325999975204468,
+        "p99": 0.5544999837875366,
+        "maximum": 1.1866999864578248
+    }
+}

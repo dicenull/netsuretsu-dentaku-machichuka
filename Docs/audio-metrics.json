@@ -1,0 +1,149 @@
+{
+  "success_small": {
+    "seconds": 0.85,
+    "peak": 0.72,
+    "rms": 0.1419,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "success_medium": {
+    "seconds": 1.0,
+    "peak": 0.72,
+    "rms": 0.1467,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "success_large": {
+    "seconds": 1.15,
+    "peak": 0.72,
+    "rms": 0.1624,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "missing": {
+    "seconds": 0.53,
+    "peak": 0.459,
+    "rms": 0.1284,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "submit": {
+    "seconds": 0.18,
+    "peak": 0.2532,
+    "rms": 0.0919,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "serve": {
+    "seconds": 0.46,
+    "peak": 0.6363,
+    "rms": 0.0965,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "start": {
+    "seconds": 1.0,
+    "peak": 0.72,
+    "rms": 0.1444,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "finish": {
+    "seconds": 1.7,
+    "peak": 0.72,
+    "rms": 0.1026,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "typing": {
+    "seconds": 0.12,
+    "peak": 0.1742,
+    "rms": 0.0749,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "chain": {
+    "seconds": 0.64,
+    "peak": 0.72,
+    "rms": 0.1653,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "discovery": {
+    "seconds": 1.1,
+    "peak": 0.6017,
+    "rms": 0.0982,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "tick": {
+    "seconds": 0.2,
+    "peak": 0.4954,
+    "rms": 0.1728,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "tick_final": {
+    "seconds": 0.25,
+    "peak": 0.4895,
+    "rms": 0.1572,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "page": {
+    "seconds": 0.26,
+    "peak": 0.3272,
+    "rms": 0.1032,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "select": {
+    "seconds": 0.31,
+    "peak": 0.6085,
+    "rms": 0.1587,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": false
+  },
+  "music_play": {
+    "seconds": 17.143,
+    "peak": 0.6857,
+    "rms": 0.1043,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": true,
+    "seam_delta": 0.000623
+  },
+  "music_rush": {
+    "seconds": 17.143,
+    "peak": 0.1873,
+    "rms": 0.0229,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": true,
+    "seam_delta": 7.1e-05
+  },
+  "music_menu": {
+    "seconds": 21.818,
+    "peak": 0.3159,
+    "rms": 0.0492,
+    "channels": 2,
+    "sample_rate": 48000,
+    "loop": true,
+    "seam_delta": 5.1e-05
+  }
+}

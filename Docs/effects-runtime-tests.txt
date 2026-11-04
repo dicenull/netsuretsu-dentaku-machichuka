@@ -1,0 +1,35 @@
+PASS typing previews the exact raw allocation
+PASS preview never reserves or consumes ingredients
+PASS clearing input clears anticipation glow
+PASS bulk cooking emits its spark trail
+PASS arrival effects wait for food to land
+PASS new meal gets one discovery burst
+PASS effects preserve sixty exact servings and points
+PASS shortage creates holograms without success particles
+PASS opponent reuses shared dish with a chain bridge and discovery
+PASS chain presentation leaves scoring intact
+PASS repeat recipe does not repeat discovery fanfare
+PASS particle pool stays bounded under a burst of ten thousand
+PASS particle saturation never changes points
+PASS transient particles drain after the burst
+PASS rematch clears effect state 0
+PASS rematch clears effect state 1
+PASS rematch clears effect state 2
+PASS rematch clears effect state 3
+PASS rematch clears effect state 4
+PASS rematch clears effect state 5
+PASS rematch clears effect state 6
+PASS rematch clears effect state 7
+PASS full 120-second match reaches result
+PASS all successful commands receive cooking presentation
+PASS all last valid servings finish their arrival presentation
+PASS full-match presentation remains within particle budget
+PASS countdown sounds once per final second
+PASS camera stays fixed through all celebrations
+Successful commands: 92
+Peak particles: 740
+Frame interval median / p95 (ms): 16.67 / 16.82
+Graphics: Null Device; batch mode: True
+PASS return to title clears match effects while keeping subtle lantern ambience
+PASS no runtime errors
+Result: PASS; assertions: 30; failures: 0; errors: 0

@@ -1,0 +1,8 @@
+Result: PASS
+Runtime errors: 0
+Successful commands: 9
+Cyan: 26500
+Orange: 20050
+Visible ECS food entities: 851
+Graphics: Apple M3 Pro
+Resolution: 1280x800
