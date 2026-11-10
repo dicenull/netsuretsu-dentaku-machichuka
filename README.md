@@ -197,7 +197,18 @@ Unity 6000.3.13f1の **Web Build Support** を入れ、プロジェクトのル�
 
 出力は `Builds/unityroom-web/`。Development Buildを無効、圧縮をGzip、Decompression Fallbackを無効に設定する。`Build/` 内の4ファイルをunityroomの「WebGLアップロード」に登録する。フォルダ一括アップロードを使う場合は展開した `Build/` フォルダをドラッグ＆ドロップする。`index.html` と `TemplateData/` はローカル確認用に同梱している。
 
-ローカルでは `index.html` を直接開かず、圧縮ファイルに `Content-Encoding: gzip` を付けるHTTPサーバーから起動する。日本語IMEやブラウザ別の表示は公開前にも確認する。
+ローカルでは `index.html` を直接開かず、圧縮ファイルに `Content-Encoding: gzip` を付けるHTTPサーバーから起動する。
+
+### WebGL版の日本語入力
+
+Unity Webの組み込みIMEは非対応のため、対戦中はブラウザの入力欄で変換を受け取り、入力内容をUnityに渡す。入力処理は `Assets/Plugins/WebGL/FeastWebInput.jslib` からビルドの `.framework.js` に組み込まれる。unityroomには通常どおり `Build/` の4ファイルをアップロードする。[UnityのIME対応状況](https://docs.unity.com/en-us/engine/6000.0/manual/input/imeinput)
+
+公開前に、ローカルのWebGLビルドとunityroomのプレビューで以下を確認する。
+
+- 日本語IMEで「ちゃーはん」と入力し、「チャーハン」に変換する。最初のEnterで変換を確定し、次のEnterで1回だけ調理する。
+- 変換中にEscで変換を取り消せることと、変換していないときはEscで入力欄を消去できることを確認する。
+- `chahan` の英字入力、料理名の貼り付け、F1での図鑑の開閉、F3での音楽切替、F5での再戦を試す。
+- Chrome、Firefox、Safariで、埋め込み表示・別タブ・全画面で入力欄の位置とフォーカスを確認する。
 
 ## Unityで編集する場合
 
