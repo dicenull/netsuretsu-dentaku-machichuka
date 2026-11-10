@@ -250,12 +250,17 @@ namespace SpinningFeast
             Card(new Rect(inputX-9,695,618,70),Paper,Ink,24,4);
             Round(new Rect(inputX-3,701,606,58),Color.Lerp(FeastView.Cyan,Paper,failed[0]?flashes[0]:0),19);
             Round(new Rect(inputX+1,705,598,50),Paper,16);
+            Rect inputRect=new Rect(inputX,703,600,54);
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if(!codex && Event.current.type==EventType.Repaint)PlaceWebInput(inputRect);
+#else
             Color oldCursor=GUI.skin.settings.cursorColor;GUI.skin.settings.cursorColor=Ink;
             GUI.SetNextControlName("dish0");
-            if(!codex)inputs[0]=GUI.TextField(new Rect(inputX,703,600,54),inputs[0],48,inputStyle);
-            else GUI.Box(new Rect(inputX,703,600,54),"",inputStyle);
+            if(!codex)inputs[0]=GUI.TextField(inputRect,inputs[0],48,inputStyle);
+            else GUI.Box(inputRect,"",inputStyle);
             GUI.skin.settings.cursorColor=oldCursor;
             if(!codex)GUI.FocusControl("dish0");
+#endif
         }
     }
 }
