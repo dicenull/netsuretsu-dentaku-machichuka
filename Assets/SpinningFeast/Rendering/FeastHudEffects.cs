@@ -8,14 +8,23 @@ namespace SpinningFeast
     {
         struct Fleck {public Vector2 Start,Velocity;public float Born,Life,Size,Angle,Spin;public Color Color;public int Kind;}
         struct ScoreFlight {public CookCue Cue;public float Born;}
+        struct EatFlight {public EatingCue Cue;public float Born;public int WordIndex;}
         const int MaxFlecks=192,MaxFlights=32;
+        static readonly string[] GradeWords={"好！","大盛！","豪華！","宴だ！"};
+        static readonly string[] EatingWords={
+            "うまい！","美味しい！","ごちそうさま！","絶品！","最高！","おかわり！",
+            "もう一皿！","たまらない！","大満足！","しあわせ！","箸が止まらない！",
+            "これは旨い！","やみつき！","いい香り！","熱々で最高！","また食べたい！",
+            "ごちそう！","うますぎる！"
+        };
         readonly List<Fleck> flecks=new List<Fleck>(MaxFlecks);
         readonly List<ScoreFlight> flights=new List<ScoreFlight>(MaxFlights);
+        readonly List<EatFlight> eatFlights=new List<EatFlight>(MaxFlights);
         readonly string[] previousInput={"",""};
         readonly float[] scoreAt={-100,-100},leadAt={-100,-100};
         readonly float[] goldAt={-100,-100};
         readonly int[] goldPoints={0,0};
-        int previousLeader=-1;float lastLeadSound=-100;
+        int previousLeader=-1,lastEatingWord=-1;float lastLeadSound=-100;
         readonly float[] typedAt={-100,-100},submittedAt={-100,-100},failedAt={-100,-100};
         FeastSystem simulation;FeastView view;FeastEffects worldEffects;FeastSound sound;Font font;
         GUIStyle effectText;
@@ -27,17 +36,17 @@ namespace SpinningFeast
         public void Initialize(FeastSystem sim,FeastView renderer,FeastEffects effects,FeastSound audio,Font face)
         {
             simulation=sim;view=renderer;worldEffects=effects;sound=audio;font=face;
-            simulation.CookingCue+=OnCooking;simulation.Failed+=OnFailed;simulation.ArrivalCue+=OnArrival;
+            simulation.CookingCue+=OnCooking;simulation.Failed+=OnFailed;simulation.ArrivalCue+=OnArrival;simulation.Eating+=OnEating;
             Reset();
         }
         public void Dispose()
-        {if(simulation!=null){simulation.CookingCue-=OnCooking;simulation.Failed-=OnFailed;simulation.ArrivalCue-=OnArrival;}}
+        {if(simulation!=null){simulation.CookingCue-=OnCooking;simulation.Failed-=OnFailed;simulation.ArrivalCue-=OnArrival;simulation.Eating-=OnEating;}}
         public void Reset()
         {
             epoch=simulation.State.Epoch;previousPhase=simulation.State.Phase;phaseAt=Time.unscaledTime;lastSecond=121;
             goldAt[0]=goldAt[1]=-100;goldPoints[0]=goldPoints[1]=0;
-            flecks.Clear();flights.Clear();previousInput[0]=previousInput[1]="";
-            previousLeader=-1;lastLeadSound=-100;
+            flecks.Clear();flights.Clear();eatFlights.Clear();previousInput[0]=previousInput[1]="";
+            previousLeader=-1;lastEatingWord=-1;lastLeadSound=-100;
             for(int i=0;i<2;i++)typedAt[i]=submittedAt[i]=failedAt[i]=scoreAt[i]=leadAt[i]=-100;
         }
         float Random(float min,float max)=>Mathf.Lerp(min,max,(float)random.NextDouble());
@@ -88,12 +97,34 @@ namespace SpinningFeast
             if(cue.Discovery || cue.BonusPoints>0)sound.Discover(cue.Player);
             else if(cue.Chain)sound.Chain(cue.Player);
         }
+        void OnEating(EatingCue cue)
+        {
+            if(epoch!=simulation.State.Epoch)Reset();
+            if(eatFlights.Count>=MaxFlights)eatFlights.RemoveAt(0);
+            int wordIndex=lastEatingWord<0?random.Next(EatingWords.Length):random.Next(EatingWords.Length-1);
+            if(lastEatingWord>=0 && wordIndex>=lastEatingWord)wordIndex++;
+            lastEatingWord=wordIndex;
+            eatFlights.Add(new EatFlight {Cue=cue,Born=Time.unscaledTime,WordIndex=wordIndex});
+            scoreAt[cue.Player]=Time.unscaledTime;
+            sound.Eating(cue.Player,cue.Count);
+            Vector2 center=new Vector2(cue.Player==0?310:970,245);
+            for(int i=0;i<36;i++)
+            {
+                float a=i*Mathf.PI*2/36;
+                Emit(center,new Vector2(Mathf.Cos(a)*Random(140,320),Mathf.Sin(a)*Random(90,230)),i%3==0?FeastView.Golden:Actor(cue.Player),Random(7,16),Random(.8f,1.6f),i%4==0?1:3);
+            }
+        }
         public void Update()
         {
             if(simulation==null)return;
             var state=simulation.State;
             if(epoch!=state.Epoch)Reset();
             if(state.Phase!=previousPhase){previousPhase=state.Phase;phaseAt=Time.unscaledTime;}
+            if(state.Phase==MatchPhase.Countdown)
+            {
+                int second=Mathf.CeilToInt(state.CountdownRemaining);
+                if(second!=lastSecond && second>0){sound.Tick(second);lastSecond=second;}
+            }
             if(state.Phase==MatchPhase.Playing)
             {
                 int leader=state.CyanScore==state.OrangeScore?-1:state.CyanScore>state.OrangeScore?0:1;
@@ -108,7 +139,8 @@ namespace SpinningFeast
                 lastSecond=second;
             }
             for(int i=flecks.Count-1;i>=0;i--)if(Time.unscaledTime-flecks[i].Born>=flecks[i].Life)flecks.RemoveAt(i);
-            for(int i=flights.Count-1;i>=0;i--)if(Time.unscaledTime-flights[i].Born>=1.45f)flights.RemoveAt(i);
+            for(int i=flights.Count-1;i>=0;i--)if(Time.unscaledTime-flights[i].Born>=2.1f)flights.RemoveAt(i);
+            for(int i=eatFlights.Count-1;i>=0;i--)if(Time.unscaledTime-eatFlights[i].Born>=2.4f)eatFlights.RemoveAt(i);
         }
         public float TypePulse(int player)
         {float t=Time.unscaledTime-typedAt[player];return t<.2f?Mathf.Sin(t/.2f*Mathf.PI)*.055f:0;}
@@ -145,9 +177,43 @@ namespace SpinningFeast
         {
             Style();Matrix4x4 matrix=GUI.matrix;
             GUI.matrix=matrix*Matrix4x4.TRS(point,Quaternion.identity,Vector3.one*scale);
-            effectText.fontSize=size;effectText.normal.textColor=new Color(.015f,.04f,.05f,color.a*.8f);
-            GUI.Label(new Rect(-238,-36,480,76),words,effectText);
-            effectText.normal.textColor=color;GUI.Label(new Rect(-240,-39,480,76),words,effectText);GUI.matrix=matrix;
+            float height=Mathf.Max(80,size*1.6f);
+            effectText.fontSize=size;float width=Mathf.Max(480,effectText.CalcSize(new GUIContent(words)).x+48);
+            effectText.normal.textColor=new Color(.015f,.04f,.05f,color.a*.8f);
+            GUI.Label(new Rect(-width*.5f+3,-height*.5f+3,width,height),words,effectText);
+            effectText.normal.textColor=color;GUI.Label(new Rect(-width*.5f,-height*.5f,width,height),words,effectText);GUI.matrix=matrix;
+        }
+        static float FadeOut(float age,float start,float end)=>1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(start,end,age));
+        public static float EatingSplashOpacity(float age)=>age<0 || age>=2.4f?0:FadeOut(age,1.35f,2.4f);
+        void DrawEatingSplash()
+        {
+            foreach(var f in eatFlights)
+            {
+                float age=Time.unscaledTime-f.Born;
+                if(age<0 || age>=2.4f)continue;
+                float fade=EatingSplashOpacity(age);
+                float flash=FadeOut(age,0,.34f)*.23f+fade*.07f;
+                Color actor=Actor(f.Cue.Player),gold=FeastView.Golden;
+                Fill(new Rect(0,0,1280,800),new Color(actor.r,actor.g,actor.b,flash));
+                Fill(new Rect(0,0,1280,12),new Color(gold.r,gold.g,gold.b,fade*.75f));
+                Fill(new Rect(0,788,1280,12),new Color(gold.r,gold.g,gold.b,fade*.75f));
+                Fill(new Rect(0,0,12,800),new Color(actor.r,actor.g,actor.b,fade*.75f));
+                Fill(new Rect(1268,0,12,800),new Color(actor.r,actor.g,actor.b,fade*.75f));
+                for(int i=0;i<96;i++)
+                {
+                    float x=(i*197+age*(i%2==0?110:-95))%1280;
+                    float y=(i*331+age*(i%3==0?170:-115))%800;
+                    if(x<0)x+=1280;if(y<0)y+=800;
+                    Color sparkle=i%3==0?gold:actor;sparkle.a=fade*(i%5==0?.75f:.55f);
+                    Sprite(new Vector2(x,y),7+(i%5)*3,sparkle,i%4==0?1:3,age*110+i*31);
+                }
+                float wordOpacity=Mathf.Clamp01(age/.18f)*FadeOut(age,1.35f,2.4f);
+                Color wordColor=f.WordIndex%3==0
+                    ?new Color(actor.r,actor.g,actor.b,wordOpacity)
+                    :new Color(1,.96f,.72f,wordOpacity);
+                float pop=1.08f+.2f*Mathf.Sin(Mathf.Clamp01(age/.45f)*Mathf.PI);
+                Words(new Vector2(640,385-age*16),EatingWords[f.WordIndex],82,wordColor,pop);
+            }
         }
         Vector2 Project(Vector3 world,float scale)
         {
@@ -159,11 +225,29 @@ namespace SpinningFeast
         {
             if(Event.current.type!=EventType.Repaint)return;
             var state=simulation.State;
+            if(state.Phase==MatchPhase.Countdown)
+            {
+                int number=Mathf.Clamp(Mathf.CeilToInt(state.CountdownRemaining),1,3);
+                float beat=1-(state.CountdownRemaining-Mathf.Floor(state.CountdownRemaining));
+                float pop=1.35f-.28f*Mathf.Clamp01(beat*2);
+                Color red=new Color(.92f,.16f,.08f,.91f);
+                Fill(new Rect(458,230,364,202),new Color(.13f,.025f,.015f,.62f));
+                Fill(new Rect(458,230,364,7),FeastView.Golden);
+                Words(new Vector2(640,325),number.ToString(),112,new Color(1,.95f,.69f,.98f),pop);
+                for(int i=0;i<16;i++)
+                {
+                    float a=i*Mathf.PI/8+Time.unscaledTime*.7f;
+                    Sprite(new Vector2(640+Mathf.Cos(a)*(120+beat*80),325+Mathf.Sin(a)*(100+beat*65)),5+3*(1-beat),i%3==0?FeastView.Golden:red,i%4==0?1:3,Time.unscaledTime*90+i*24);
+                }
+                return;
+            }
+            DrawEatingSplash();
             if(!bookOpen)
             {
                 foreach(var f in flights)
                 {
                     float age=Time.unscaledTime-f.Born,t=Mathf.Clamp01((age-.3f)/.95f);
+                    int grade=FeastEffects.GradeForPortions(f.Cue.Count);
                     Vector3 world=FeastSystem.PlatePosition(f.Cue.Slot,state.Angle);world.y+=.8f;
                     Vector2 origin=Project(world,scale);origin.x=Mathf.Clamp(origin.x,160,1120);origin.y=Mathf.Clamp(origin.y,180,590);
                     Vector2 target=new Vector2(f.Cue.Player==0?190:1090,92);
@@ -176,7 +260,50 @@ namespace SpinningFeast
                         Color portions=Actor(f.Cue.Player);portions.a=(1-age/.65f)*.8f;
                         Words(new Vector2(f.Cue.Player==0?395:885,615-age*32),"×"+f.Cue.Count,22,portions);
                     }
+                    if(age<1.9f)
+                    {
+                        float fade=1-Mathf.SmoothStep(1.1f,1.9f,age);
+                        Color stamp=grade>=2?FeastView.Golden:Actor(f.Cue.Player);stamp.a=fade;
+                        Vector2 center=origin+new Vector2(0,-75-grade*8-age*14);
+                        float pop=1+.4f*Mathf.Sin(Mathf.Clamp01(age/.3f)*Mathf.PI)*Mathf.Exp(-age);
+                        Words(center,GradeWords[grade],28+grade*9,stamp,pop);
+                        int stars=4+grade*5;
+                        for(int i=0;i<stars;i++)
+                        {
+                            float a=i*Mathf.PI*2/stars+age*2;
+                            Sprite(center+new Vector2(Mathf.Cos(a)*(68+grade*19+age*65),Mathf.Sin(a)*(34+grade*11+age*35)),6+grade*4,stamp,i%3==0?1:3,age*110+i*35);
+                        }
+                        if(grade>=2 && age<.38f)
+                        {
+                            Color edge=stamp;edge.a=(1-age/.38f)*(grade==3?.22f:.11f);
+                            Fill(new Rect(0,0,1280,8+grade*3),edge);
+                            Fill(new Rect(0,800-(8+grade*3),1280,8+grade*3),edge);
+                            Fill(new Rect(0,0,8+grade*3,800),edge);
+                            Fill(new Rect(1280-(8+grade*3),0,8+grade*3,800),edge);
+                        }
+                    }
                     if(t>0 && t<.9f)Sprite(point+new Vector2(f.Cue.Player==0?-70:70,0),7,color,1,age*80);
+                }
+                foreach(var f in eatFlights)
+                {
+                    float age=Time.unscaledTime-f.Born;
+                    float t=Mathf.Clamp01((age-.45f)/1.05f),smooth=t*t*(3-2*t);
+                    Vector3 world=FeastSystem.PlatePosition(f.Cue.Slot,state.Angle);world.y+=1.5f;
+                    Vector2 origin=Project(world,scale);origin.x=Mathf.Clamp(origin.x,170,1110);origin.y=Mathf.Clamp(origin.y,190,570);
+                    Vector2 target=new Vector2(f.Cue.Player==0?190:1090,92);
+                    Vector2 point=Vector2.Lerp(origin,target,smooth);point.y-=Mathf.Sin(t*Mathf.PI)*80;
+                    Color accent=Actor(f.Cue.Player);accent.a=FadeOut(age,1.65f,2.4f)*.95f;
+                    Color gold=FeastView.Golden;gold.a=accent.a;
+                    if(age<1.4f)
+                    {
+                        Words(origin+new Vector2(0,-35-age*10),$"{f.Cue.Count}人前",24,accent);
+                    }
+                    Words(point,"+"+f.Cue.Points.ToString("N0"),31,accent);
+                    for(int i=0;i<12;i++)
+                    {
+                        float a=i*Mathf.PI/6+age*2;
+                        Sprite(origin+new Vector2(Mathf.Cos(a)*(70+age*85),Mathf.Sin(a)*(42+age*52)),6+4*(1-t),i%3==0?gold:accent,i%4==0?1:3,age*95+i*30);
+                    }
                 }
                 for(int player=0;player<2;player++)
                 {
@@ -225,7 +352,7 @@ namespace SpinningFeast
                 if(intro<1.3f)
                 {
                     float a=Mathf.Clamp01(intro/.16f)*(1-Mathf.SmoothStep(.6f,1.3f,intro));
-                    Words(new Vector2(640,300-intro*24),"いただきます！",52,new Color(1,.94f,.76f,a),.85f+.15f*(1-Mathf.Exp(-intro*10)));
+                    Words(new Vector2(640,300-intro*24),"料理開始！",64,new Color(1,.94f,.76f,a),.85f+.15f*(1-Mathf.Exp(-intro*10)));
                     for(int p=0;p<2;p++){Color c=Actor(p);c.a=a*.8f;Fill(new Rect(p==0?380:640,344-intro*24,260,3),c);}
                 }
             }

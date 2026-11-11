@@ -114,7 +114,7 @@ namespace SpinningFeast.Editor
             Action<bool,string> check=(ok,label)=>{if(!ok)throw new Exception("FEAST_TEST_FAIL "+label);checks++;};
             using(var world=new World("Feast isolated tests"))
             {
-                var s=world.GetOrCreateSystemManaged<FeastSystem>();s.SaveDiscoveries=false;s.RainEnabled=false;s.ResetMatch(42,0,120);
+                var s=world.GetOrCreateSystemManaged<FeastSystem>();s.SaveDiscoveries=false;s.RainEnabled=false;s.AutoEatEnabled=false;s.ResetMatch(42,0,120);
                 var em=world.EntityManager;
                 var servedActors=new List<int>();s.Served+=(player,recipe,count)=>servedActors.Add(player);
                 var cookingCues=new List<CookCue>();var arrivalCues=new List<CookCue>();
@@ -192,12 +192,12 @@ namespace SpinningFeast.Editor
                 check(s.Inventory()[(int)FoodKind.FriedRice]==36 && s.Inventory()[(int)FoodKind.Omurice]==12,"arrivals merge exactly into their existing platters");
                 check(recordedPortions(0,0)==30 && recordedPortions(1,0)==18 && recordedPortions(1,6)==12 && s.MatchDishes().Length==3,"same recipe merges per cook, separate from shared platter ownership");
                 int cyanLedgerScore=0,orangeLedgerScore=0;
-                foreach(var row in s.MatchDishes())if(row.Player==0)cyanLedgerScore+=row.Count*Cookbook.All[row.Recipe].Points+row.BonusPoints;else orangeLedgerScore+=row.Count*Cookbook.All[row.Recipe].Points+row.BonusPoints;
+                foreach(var row in s.MatchDishes())if(row.Player==0)cyanLedgerScore+=row.Count*Cookbook.All[row.Recipe].Points+row.BonusPoints+row.EatenPoints;else orangeLedgerScore+=row.Count*Cookbook.All[row.Recipe].Points+row.BonusPoints+row.EatenPoints;
                 check(cyanLedgerScore==s.State.CyanScore && orangeLedgerScore==s.State.OrangeScore,"result portions reconcile to both final scores");
                 var positions=new HashSet<Unity.Mathematics.float3>();
                 for(int slot=0;slot<260;slot++)positions.Add(FeastSystem.PlatePosition(slot,0));
                 check(positions.Count==260,"layout extends beyond the current recipe catalogue without a plate cap");
-                bool fits=true;float plateRadius=.72f*ArenaGeometry.FoodModelScale;
+                bool fits=true;float plateRadius=.72f*ArenaGeometry.FoodModelScale*ArenaGeometry.TableScale;
                 for(int seat=0;seat<7;seat++)
                 {
                     float3 at=FeastSystem.PlatePosition(seat,0);
@@ -211,7 +211,7 @@ namespace SpinningFeast.Editor
                 int epoch=s.State.Epoch;s.ResetMatch(42,3000,120);
                 check(s.State.Epoch>epoch && s.State.CyanScore==0,"reset isolates match and clears scores");
                 check(s.MatchDishes().Length==0,"new match clears the result ledger");
-                int raw=0;foreach(int n in s.Inventory())raw+=n;check(raw==3000,"3000 ingredient capacity");
+                int raw=0;foreach(int n in s.Inventory())raw+=n;check(raw==3000,"3000 starting ingredients");
                 tick(.016f);check(s.State.Remaining>119,"Burst job runs on 3000 entities");
                 s.RainEnabled=true;s.ResetMatch(42,0,120,MatchPhase.Title);
                 add(FoodKind.Rice,2);add(FoodKind.Egg,1);add(FoodKind.Carrot,1);
@@ -239,7 +239,9 @@ namespace SpinningFeast.Editor
                 s.Submit(0,0,1,s.State.Epoch);tick(.02f);int oldArrivals=arrivalCues.Count;
                 s.ResetMatch(42,0,120);tick(1);
                 check(arrivalCues.Count==oldArrivals,"reset discards pending arrival fanfares from the previous match");
-                check(FeastEffects.BurstCount(1)<FeastEffects.BurstCount(20) && FeastEffects.BurstCount(int.MaxValue)==84 && FeastEffects.BurstCount(-5)>=0,"large-batch sparkle density is bounded independently of portions");
+                check(FeastEffects.BurstCount(1)<FeastEffects.BurstCount(20) && FeastEffects.BurstCount(int.MaxValue)==180 && FeastEffects.BurstCount(-5)>=0,"large-batch sparkle density is bounded independently of portions");
+                check(FeastEffects.GradeForPortions(1)==0 && FeastEffects.GradeForPortions(10)==1 && FeastEffects.GradeForPortions(40)==2 && FeastEffects.GradeForPortions(120)==3,"completion grade follows serving count at each threshold");
+                check(FeastHudEffects.EatingSplashOpacity(0)>0 && FeastHudEffects.EatingSplashOpacity(1)>.9f && FeastHudEffects.EatingSplashOpacity(2f)>0 && FeastHudEffects.EatingSplashOpacity(2.4f)==0,"eating screen flash remains visible before fading out");
                 s.ResetMatch(42,0,120);
                 Func<float3,Entity> loose=position=>
                 {
@@ -248,25 +250,48 @@ namespace SpinningFeast.Editor
                     em.SetComponentData(entity,new Visual {Kind=FoodKind.Tomato,Position=position,Floor=position.y,Scale=.5f,Seed=1});
                     return entity;
                 };
-                var neighbour=loose(new float3(5.8f,.7f,0));
-                var distant=loose(new float3(-6,.7f,0));
-                var overhead=loose(new float3(5.8f,8,0));
+                float nearRadius=ArenaGeometry.IngredientInner+1f,farRadius=ArenaGeometry.TableRadius-.8f,floorRadius=ArenaGeometry.TableRadius+1f;
+                var nearFlow=loose(new float3(0,.7f,nearRadius));
+                var farFlow=loose(new float3(0,.7f,farRadius));
+                var floorStock=loose(new float3(0,-1f,floorRadius));
+                for(int frame=0;frame<60;frame++)tick(1f/60);
+                var nearAfter=em.GetComponentData<Visual>(nearFlow);
+                var farAfter=em.GetComponentData<Visual>(farFlow);
+                var floorAfter=em.GetComponentData<Visual>(floorStock);
+                check(nearAfter.Position.x>.3f && nearAfter.OrbitAngle>farAfter.OrbitAngle && math.abs(math.length(nearAfter.Position.xz)-nearRadius)<.001f,"the rotating center carries and turns nearby table ingredients around the same radius");
+                check(farAfter.Position.x>.1f && farAfter.OrbitAngle>0 && math.abs(math.length(farAfter.Position.xz)-farRadius)<.001f,"outer table ingredients follow a slower circular flow");
+                check(math.lengthsq(floorAfter.Position.xz-new float2(0,floorRadius))<.000001f && floorAfter.OrbitAngle==0,"ingredients beyond the table do not orbit on the floor");
+                s.ResetMatch(42,0,120);
+                var neighbour=loose(new float3(ArenaGeometry.TableRadius-1.8f,.7f,0));
+                var edgeNeighbour=loose(new float3(ArenaGeometry.TableRadius+.05f,.7f,0));
+                var distant=loose(new float3(-ArenaGeometry.TableRadius+1.6f,.7f,0));
+                var overhead=loose(new float3(ArenaGeometry.TableRadius-1.8f,8,0));
                 var flyer=em.CreateEntity(typeof(Visual));
-                em.SetComponentData(flyer,new Visual {Mode=1,Start=new float3(6.3f,.7f,0),Position=new float3(6.3f,.7f,0),Scale=.5f,Duration=FeastSystem.FlightTime});
+                em.SetComponentData(flyer,new Visual {Mode=1,Start=new float3(ArenaGeometry.TableRadius-1.3f,.7f,0),Position=new float3(ArenaGeometry.TableRadius-1.3f,.7f,0),Scale=.5f,Duration=FeastSystem.FlightTime});
                 tick(.08f);
                 var bumped=em.GetComponentData<Visual>(neighbour);
                 check(bumped.Velocity>0 && math.lengthsq(bumped.Drift)>.1f && bumped.Scatter>0,"moving cooking ingredients launch nearby loose stock sideways and upward");
+                check(em.GetComponentData<Visual>(edgeNeighbour).Scatter>0,"expanded cooking collision reaches ingredients across the table edge");
                 check(math.lengthsq(em.GetComponentData<Visual>(distant).Drift)==0 && em.GetComponentData<Visual>(distant).Scatter==0,"distant stock is not affected by cooking wakes");
                 check(em.GetComponentData<Visual>(overhead).Scatter==0,"wakes use height as well as table position");
-                check(s.Inventory()[(int)FoodKind.Tomato]==3 && s.State.CyanScore==0,"scattering changes neither ingredient quantities nor score");
+                check(s.Inventory()[(int)FoodKind.Tomato]==4 && s.State.CyanScore==0,"scattering changes neither ingredient quantities nor score");
                 for(int frame=0;frame<240;frame++)tick(1f/60);
                 bumped=em.GetComponentData<Visual>(neighbour);
                 check(bumped.Scatter==0 && math.length(bumped.Drift)<.02f && math.abs(bumped.Position.y-bumped.Floor)<.02f,"scattered stock settles without endless jitter");
-                bumped.Position=new float3(7.2f,.7f,0);bumped.Drift=new float2(20,0);
+                bumped.Position=new float3(ArenaGeometry.TableRadius-.4f,.7f,0);bumped.Drift=new float2(20,0);
                 em.SetComponentData(neighbour,bumped);tick(.05f);
                 bumped=em.GetComponentData<Visual>(neighbour);
-                check(math.length(bumped.Position.xz)<=ArenaGeometry.TableRadius-bumped.Scale*.65f+.001f && bumped.Drift.x<0,"outer table rim reflects scattered ingredients back onto the table");
-                bumped.Position=new float3(4.46f,.7f,0);bumped.Drift=new float2(-10,0);
+                check(math.length(bumped.Position.xz)>ArenaGeometry.TableRadius && bumped.Floor<0 && bumped.Drift.x>0,"scattered ingredients can spill past the table edge onto the floor");
+                bumped.Drift=new float2(40,0);
+                em.SetComponentData(neighbour,bumped);tick(.05f);
+                bumped=em.GetComponentData<Visual>(neighbour);
+                check(math.length(bumped.Position.xz)>ArenaGeometry.IngredientOuter && bumped.Drift.x>0,"spilled food can travel beyond the initial camera arena");
+                bumped.Position=new float3(ArenaGeometry.BounceSphereRadius+.2f,-1f,0);bumped.Drift=new float2(40,0);
+                em.SetComponentData(neighbour,bumped);tick(.05f);
+                bumped=em.GetComponentData<Visual>(neighbour);
+                check(math.length(bumped.Position-new float3(0,.3f,0))<=ArenaGeometry.BounceSphereRadius+.001f && bumped.Drift.x<0,"offscreen food rebounds from the three-dimensional sphere");
+                bumped.Floor=.7f;
+                bumped.Position=new float3(ArenaGeometry.IngredientInner+.01f,.7f,0);bumped.Drift=new float2(-10,0);
                 em.SetComponentData(neighbour,bumped);tick(.05f);
                 bumped=em.GetComponentData<Visual>(neighbour);
                 check(math.length(bumped.Position.xz)>=ArenaGeometry.IngredientInner-.001f && bumped.Drift.x>0,"turntable border keeps loose stock outside finished platters");
@@ -276,6 +301,59 @@ namespace SpinningFeast.Editor
                 neighbour=loose(math.lerp(fast.Position,end,.5f));
                 flyer=em.CreateEntity(typeof(Visual));em.SetComponentData(flyer,fast);tick(.35f);
                 check(em.GetComponentData<Visual>(neighbour).Scatter>0,"swept flight paths hit stock between frames even at low frame rates");
+                s.ResetMatch(42,0,120);
+                Entity goldCollider=em.CreateEntity(typeof(Visual));
+                em.SetComponentData(goldCollider,new Visual {Kind=FoodKind.Egg,Golden=1,Scale=1.5f,Position=new float3(15f,.72f,0),Floor=.7f,Velocity=-8f,Drift=new float2(4,2)});
+                tick(1f/60);
+                var bounced=em.GetComponentData<Visual>(goldCollider);
+                check(bounced.Velocity>7f && bounced.Position.y>=bounced.Floor && bounced.Position.x>15f,"gold physically rebounds from the floor with near-unit restitution and sideways momentum");
+                Entity contact=em.CreateEntity(typeof(Visual));
+                em.SetComponentData(contact,new Visual {Kind=FoodKind.Rice,Scale=.8f,Position=new float3(15.6f,.7f,0),Floor=.7f,Life=1});
+                tick(.02f);
+                var contactAfter=em.GetComponentData<Visual>(contact);
+                check(contactAfter.Position.x>15.6f && contactAfter.Scatter>0 && contactAfter.Drift.x>0 && contactAfter.GoldLaunch>0,"bouncing gold launches nearby food toward the offscreen boundary");
+                for(int frame=0;frame<240;frame++)tick(1f/60);
+                contactAfter=em.GetComponentData<Visual>(contact);
+                check(contactAfter.GoldLaunch==0 && math.abs(contactAfter.Position.y-contactAfter.Floor)<.05f,"gold collision settles after one ballistic launch");
+                s.ResetMatch(42,3100,120);
+                using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))
+                using(var all=q.ToComponentDataArray<Visual>(Allocator.Temp))
+                {
+                    int spilled=0,onTable=0;float farthest=0;
+                    foreach(var v in all)
+                    {
+                        float radius=math.length(v.Position.xz);farthest=math.max(farthest,radius);
+                        if(v.Floor<0 && radius>ArenaGeometry.TableRadius)spilled++;
+                        else if(v.Floor>=0 && radius<ArenaGeometry.TableRadius)onTable++;
+                    }
+                    check(all.Length==3100 && onTable>2000 && spilled>800,"all stock is drawn and most ingredients spawn on the table");
+                    check(farthest>30f && farthest<=ArenaGeometry.InitialScatterOuter+.001f,"initial ingredients scatter well beyond the camera-sized arena");
+                }
+                s.RainEnabled=true;tick(1);s.RainEnabled=false;
+                using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))check(q.CalculateEntityCount()==3165,"ingredient rain keeps adding stock beyond the former 3000 limit");
+                using(var q=em.CreateEntityQuery(typeof(Visual)))using(var all=q.ToComponentDataArray<Visual>(Allocator.Temp))
+                {
+                    int high=0;foreach(var v in all)if(v.Position.y>6f)high++;
+                    check(high==65,"new ingredients rain from far above the initial stock");
+                }
+                s.ResetMatch();
+                using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))check(q.CalculateEntityCount()==10000,"a normal match begins with 10000 ingredients");
+                check(goldStock()==0,"a normal match starts with no gold ingredients");
+                s.RainEnabled=false;s.ResetMatch(42,300,120,MatchPhase.Countdown);
+                using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))check(q.CalculateEntityCount()==0,"countdown starts before any ingredients have fallen");
+                int countdownEpoch=s.State.Epoch;s.Submit(0,0,1,countdownEpoch);
+                tick(1);
+                using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))check(q.CalculateEntityCount()==100,"the first countdown second rains one third of the opening stock");
+                check(s.State.Phase==MatchPhase.Countdown && s.State.Remaining==120 && s.State.Elapsed==0 && s.SuccessfulCommands==0,"countdown blocks cooking and preserves the match clock");
+                tick(1);
+                using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))check(q.CalculateEntityCount()==200,"the second countdown second continues the ingredient rain");
+                tick(1);
+                using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))check(q.CalculateEntityCount()==300,"the countdown completes all opening ingredients");
+                check(s.State.Phase==MatchPhase.Playing && s.State.Remaining==120 && goldStock()==0,"play begins with full time and no opening gold");
+                s.RainEnabled=true;tick(1);s.RainEnabled=false;
+                using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))check(q.CalculateEntityCount()==365,"ingredient rain continues after the countdown");
+                s.ResetMatch();s.RainEnabled=true;tick(1);s.RainEnabled=false;
+                using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))check(q.CalculateEntityCount()==10065,"ingredient rain continues beyond 10000 without an overall cap");
                 s.ResetMatch(42,3000,120);tick(.016f);
                 using(var q=em.CreateEntityQuery(typeof(Visual)))using(var all=q.ToComponentDataArray<Visual>(Allocator.Temp))
                 {
@@ -293,7 +371,7 @@ namespace SpinningFeast.Editor
                         var recipe=Cookbook.All[chosen];var plan=RecipeSolver.Solve(recipe,stock);
                         int before=s.State.OrangeScore,quantity=stock[(int)recipe.Output],goldBefore=goldStock();
                         s.Submit(1,chosen,turn+1,s.State.Epoch);tick(.02f);
-                        check(s.State.OrangeScore==before+(plan.Servings+goldBefore-goldStock())*recipe.Points && s.State.CyanScore==0,"CPU level uses exact base and consumed-gold scoring: "+level);
+                        check(s.State.OrangeScore==before+(plan.Servings+(goldBefore-goldStock())*(FeastSystem.GoldenScoreMultiplier-1))*recipe.Points && s.State.CyanScore==0,"CPU level uses exact base and consumed-gold scoring: "+level);
                         tick(.9f);
                         check(s.Inventory()[(int)recipe.Output]==quantity+plan.Servings,"CPU level receives normal shared servings: "+level);
                         cooked++;
@@ -301,9 +379,11 @@ namespace SpinningFeast.Editor
                     check(cooked>0,"CPU level can play against actual ECS stock: "+level);
                 }
                 // Gold is ordinary recipe stock with a single-use scoring bonus.
-                s.ResetMatch(42,3000,120);
+                s.ResetMatch(42,10000,120);
+                check(goldStock()==0,"even a seeded match starts with zero gold ingredients");
+                s.ResetMatch(42,0,120);s.RainEnabled=true;tick(100);s.RainEnabled=false;
                 int spawnedGold=goldStock();
-                check(spawnedGold>50 && spawnedGold<160,"gold is a rare random subset of normal stock");
+                check(spawnedGold>0 && spawnedGold<25,"gold appears randomly in ongoing rain at about one per ten seconds: "+spawnedGold);
                 using(var q=em.CreateEntityQuery(typeof(Stock),typeof(Visual)))using(var entities=q.ToEntityArray(Allocator.Temp))
                 {
                     bool valid=true;int marked=0;
@@ -317,30 +397,29 @@ namespace SpinningFeast.Editor
                     }
                     check(valid && marked==spawnedGold,"gold appearance, larger size and authoritative stock agree");
                 }
-                s.ResetMatch(42,3000,120);check(goldStock()==spawnedGold,"gold generation is repeatable for a match seed");
-                s.ResetMatch(42,0,120);s.RainEnabled=true;tick(1);s.RainEnabled=false;
-                check(goldStock()>0 && goldStock()<65,"ongoing ingredient rain also contains gold");
+                s.ResetMatch(42,0,120);s.RainEnabled=true;tick(100);s.RainEnabled=false;
+                check(goldStock()==spawnedGold,"gold rain is repeatable for a match seed");
                 s.ResetMatch(42,0,120);cookingCues.Clear();arrivalCues.Clear();
                 addGold(FoodKind.Rice);addGold(FoodKind.Rice);addGold(FoodKind.Tomato);
                 add(FoodKind.Egg,1);add(FoodKind.Carrot,1);
                 s.Submit(0,0,1,s.State.Epoch);s.Submit(1,0,1,s.State.Epoch);tick(.02f);
-                check(s.State.CyanScore==300 && s.State.OrangeScore==0,"two gold ingredients add two serving-values only to their cook");
+                check(s.State.CyanScore==500 && s.State.OrangeScore==0,"two gold ingredients triple their serving-value only for their cook");
                 check(goldStock()==1 && s.Inventory()[(int)FoodKind.Tomato]==1,"unrelated gold stock grants no bonus and remains available");
-                check(cookingCues.Count==1 && cookingCues[0].BonusPoints==200 && s.MatchDishes()[0].BonusPoints==200,"gold bonus reaches score effects and result ledger once");
+                check(cookingCues.Count==1 && cookingCues[0].BonusPoints==400 && s.MatchDishes()[0].BonusPoints==400,"gold bonus reaches score effects and result ledger once");
                 using(var q=em.CreateEntityQuery(typeof(Visual)))using(var all=q.ToComponentDataArray<Visual>(Allocator.Temp))
                 {
                     int goldenFlights=0;foreach(var v in all)if(v.Mode==1 && v.Golden==1)goldenFlights++;
                     check(goldenFlights==2,"consumed gold keeps its appearance while flying to the platter");
                 }
                 tick(.9f);
-                check(arrivalCues.Count==1 && arrivalCues[0].BonusPoints==200 && s.State.CyanScore==300,"arrival preserves bonus metadata without scoring twice");
+                check(arrivalCues.Count==1 && arrivalCues[0].BonusPoints==400 && s.State.CyanScore==500,"arrival preserves bonus metadata without scoring twice");
                 add(FoodKind.Egg,2);s.Submit(1,6,2,s.State.Epoch);tick(.02f);
                 check(s.State.OrangeScore==180 && cookingCues[1].BonusPoints==0,"shared chain dishes do not recycle a spent gold bonus");
                 addGold(FoodKind.Rice);add(FoodKind.Rice,1);add(FoodKind.Egg,1);add(FoodKind.Carrot,1);
                 s.Submit(0,0,2,s.State.Epoch);tick(.02f);
-                check(s.State.CyanScore==500 && s.MatchDishes()[0].Count==2 && s.MatchDishes()[0].BonusPoints==300,"repeated batches accumulate portions and their exact gold bonuses");
+                check(s.State.CyanScore==800 && s.MatchDishes()[0].Count==2 && s.MatchDishes()[0].BonusPoints==600,"repeated batches accumulate portions and their exact gold bonuses");
                 s.Submit(0,0,2,s.State.Epoch);s.Submit(1,0,3,s.State.Epoch-1);tick(.02f);
-                check(s.State.CyanScore==500 && s.State.OrangeScore==180 && goldStock()==1,"duplicate, failed and stale requests cannot award or consume gold");
+                check(s.State.CyanScore==800 && s.State.OrangeScore==180 && goldStock()==1,"duplicate, failed and stale requests cannot award or consume gold");
                 s.ResetMatch(42,0,120);
                 check(goldStock()==0 && s.MatchDishes().Length==0 && s.State.CyanScore==0,"reset clears gold stock and bonus records");
                 for(int i=0;i<Cookbook.All.Length;i++)
@@ -352,9 +431,37 @@ namespace SpinningFeast.Editor
                     tick(.9f);
                     check(s.Inventory()[(int)recipe.Output]==3 && s.Discovered[i],"catalogue recipe arrives and unlocks: "+recipe.Name);
                 }
+                s.ResetMatch(42,0,120);s.AutoEatEnabled=true;
+                var eatingCues=new List<EatingCue>();s.Eating+=cue=>eatingCues.Add(cue);
+                add(FoodKind.Rice,8);add(FoodKind.Egg,4);add(FoodKind.Carrot,4);
+                s.Submit(0,0,1,s.State.Epoch);tick(.02f);tick(.9f);
+                check(s.Inventory()[(int)FoodKind.FriedRice]==4,"first chef's finished dish waits on the shared plate");
+                add(FoodKind.Rice,2);add(FoodKind.Egg,1);add(FoodKind.Carrot,1);
+                s.Submit(1,0,1,s.State.Epoch);tick(.02f);tick(.9f);
+                check(s.Inventory()[(int)FoodKind.FriedRice]==5,"last chef's serving merges into the same plate");
+                int firstScore=s.State.CyanScore,lastScore=s.State.OrangeScore;
+                for(int i=0;i<9;i++)tick(1);
+                check(eatingCues.Count==0 && s.Inventory()[(int)FoodKind.FriedRice]==5,"dishes are not eaten before ten seconds on the plate");
+                for(int i=0;i<15 && eatingCues.Count==0;i++)tick(1);
+                check(eatingCues.Count==1,"an eligible completed dish is selected at a random interval");
+                var eaten=eatingCues[0];
+                check(eaten.Player==1 && eaten.Recipe==0 && eaten.Count>=1 && eaten.Count<=5 && eaten.Points==eaten.Count*Cookbook.All[0].Points,"eating credits the last cook for exactly the portions taken");
+                check(s.State.CyanScore==firstScore && s.State.OrangeScore==lastScore+eaten.Points && s.Inventory()[(int)FoodKind.FriedRice]==5-eaten.Count,"eating changes only the last cook's score and shared stock");
+                var cookedRows=s.MatchDishes();
+                check(cookedRows.Length==2 && cookedRows[0].EatenPoints==0 && cookedRows[1].EatenCount==eaten.Count && cookedRows[1].EatenPoints==eaten.Points,"result ledger preserves who cooked and who earned the eating bonus");
+                using(var q=em.CreateEntityQuery(typeof(Visual)))using(var all=q.ToComponentDataArray<Visual>(Allocator.Temp))
+                {
+                    int shower=0;foreach(var v in all)if(v.Mode==4){shower++;check(v.Kind==FoodKind.FriedRice && v.Player==1 && v.Recipe==0,"dish shower uses the eaten meal model and final cook color");}
+                    check(shower>=60 && shower<=96,"eating launches a screen-filling but bounded three-dimensional dish shower");
+                }
+                s.AutoEatEnabled=false;
+                for(int i=0;i<4;i++)tick(1);
+                using(var q=em.CreateEntityQuery(typeof(Visual)))using(var all=q.ToComponentDataArray<Visual>(Allocator.Temp))
+                {int shower=0;foreach(var v in all)if(v.Mode==4)shower++;check(shower==0,"eaten-dish shower expires without becoming recipe stock");}
+                s.ResetMatch(42,0,120);check(s.MatchDishes().Length==0 && s.State.CyanScore==0 && s.State.OrangeScore==0,"rematch clears eating awards and scores");
 
             }
-            Directory.CreateDirectory("Docs");File.WriteAllText("Docs/simulation-tests.txt","PASS: "+checks+" assertions\nContention, maximum batches, reservation, sharing, chaining, discovery, replay rejection, merging, deadline, reset, 3000 entities.\n");
+            Directory.CreateDirectory("Docs");File.WriteAllText("Docs/simulation-tests.txt","PASS: "+checks+" assertions\nContention, maximum batches, reservation, sharing, chaining, discovery, replay rejection, merging, deadline, reset, 10000 starting ingredients, lazy-Susan stock flow, uncapped rain and table-edge spill.\n");
             Debug.Log("FEAST_TEST_PASS checks="+checks);
         }
     }

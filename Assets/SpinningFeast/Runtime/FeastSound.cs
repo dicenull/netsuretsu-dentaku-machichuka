@@ -104,12 +104,21 @@ namespace SpinningFeast
             double when=AudioSettings.dspTime+.08;musicMain.PlayScheduled(when);musicLayer.PlayScheduled(when);
         }
         public void Cook(int player,int recipe,int count)
-        {Play(count>=40?large:count>=10?medium:small,player,1,1);}
+        {
+            int grade=FeastEffects.GradeForPortions(count);
+            Play(grade>=2?large:grade==1?medium:small,player,1,grade==3?1.08f:1);
+            if(grade==3)Play(discovery,player,.55f,1.35f);
+        }
         public void Missing(int player)
         {if(Time.unscaledTime-lastFailure[player]<.18f)return;lastFailure[player]=Time.unscaledTime;Play(missing,player,.65f);}
         public void Submit(int player)
         {if(Time.unscaledTime-lastSubmit[player]<.06f)return;lastSubmit[player]=Time.unscaledTime;Play(submit,player,.4f);}
-        public void Serve(int player,int recipe,int count){Play(serve,player,count>=40?.85f:.65f,1+(recipe%3)*.03f);}
+        public void Serve(int player,int recipe,int count){Play(serve,player,count>=120?1.1f:count>=40?.85f:.65f,1+(recipe%3)*.03f+(count>=120?.12f:0));}
+        public void Eating(int player,int count)
+        {
+            Play(serve,player,.9f,1.25f);
+            Play(count>=10?large:medium,player,.7f,1.12f);
+        }
         public void Type(int player)
         {
             if(Time.unscaledTime-lastType[player]<.055f)return;lastType[player]=Time.unscaledTime;

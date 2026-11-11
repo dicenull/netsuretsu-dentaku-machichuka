@@ -49,10 +49,11 @@ namespace SpinningFeast
         public int ArrivalEvents {get;private set;}
         public int DiscoveryEvents {get;private set;}
         public int ChainEvents {get;private set;}
+        public int EatingEvents {get;private set;}
         public void Initialize(FeastSystem sim,FeastView renderer)
         {
             simulation=sim;view=renderer;view.Effects=this;
-            simulation.CookingCue+=OnCooking;simulation.ArrivalCue+=OnArrival;
+            simulation.CookingCue+=OnCooking;simulation.ArrivalCue+=OnArrival;simulation.Eating+=OnEating;
             atlas=CreateAtlas();
             additive=new Material(Shader.Find("SpinningFeast/Particles"));additive.SetTexture("_MainTex",atlas);additive.SetFloat("_DstBlend",(float)BlendMode.One);
             alpha=new Material(additive);alpha.SetFloat("_DstBlend",(float)BlendMode.OneMinusSrcAlpha);
@@ -66,7 +67,7 @@ namespace SpinningFeast
         {
             epoch=simulation.State.Epoch;motes.Clear();ripples.Clear();bridges.Clear();pendingArrivals.Clear();
             for(int i=0;i<servedAt.Length;i++){servedAt[i]=-100;foundAt[i]=-100;platterAt[i]=-100;servedWeight[i]=0;}
-            PeakParticles=CookingEvents=ArrivalEvents=DiscoveryEvents=ChainEvents=0;
+            PeakParticles=CookingEvents=ArrivalEvents=DiscoveryEvents=ChainEvents=EatingEvents=0;
             actorAt[0]=actorAt[1]=-100;actorStrength[0]=actorStrength[1]=0;
             previousPhase=simulation.State.Phase;resultAt=-100;
             if(previousPhase==MatchPhase.Playing)
@@ -77,7 +78,8 @@ namespace SpinningFeast
         }
         float Random(float min,float max)=>Mathf.Lerp(min,max,(float)random.NextDouble());
         static Color Actor(int player)=>player==0?FeastView.Cyan:FeastView.Orange;
-        public static int BurstCount(int portions)=>Mathf.Clamp(12+Mathf.CeilToInt(Mathf.Log(1f+Mathf.Max(0,portions))*10),12,84);
+        public static int GradeForPortions(int portions)=>portions>=120?3:portions>=40?2:portions>=10?1:0;
+        public static int BurstCount(int portions)=>Mathf.Clamp(16+Mathf.CeilToInt(Mathf.Log(1f+Mathf.Max(0,portions))*20),16,180);
         void Add(Mote mote)
         {
             if(motes.Count>=MaxParticles)return;
@@ -96,14 +98,29 @@ namespace SpinningFeast
             if(ripples.Count>=MaxRings)ripples.RemoveAt(0);
             ripples.Add(new Ripple {Slot=slot,Position=position,Color=color,Size=size,Life=life,Born=Time.time});
         }
+        void Celebration(Vector3 position,Color actor,int grade)
+        {
+            if(grade==0)return;
+            int count=grade==1?24:grade==2?64:120;
+            float speed=1.5f+grade*.9f;
+            for(int i=0;i<count;i++)
+            {
+                float angle=i*Mathf.PI*2/count;
+                Color color=i%3==0?FeastView.Golden:i%3==1?actor:new Color(1,.97f,.73f);
+                Add(new Mote {Position=position+Vector3.up*(grade>=2?.6f:.3f),Velocity=new Vector3(Mathf.Sin(angle)*speed*Random(.7f,1.35f),Random(1.8f,4f+grade),Mathf.Cos(angle)*speed*Random(.7f,1.35f)),Color=color,Life=Random(.95f,1.4f+grade*.25f),Size=Random(.07f,.13f+grade*.02f),Kind=i%5==0?1:3,Spin=Random(-9,9),Angle=angle,Gravity=-2.8f});
+            }
+        }
         void OnCooking(CookCue cue)
         {
             if(epoch!=simulation.State.Epoch)ResetForMatch();
             CookingEvents++;if(cue.NewPlatter){platterAt[cue.Recipe]=Time.time;servedAt[cue.Recipe]=-100;}
-            actorAt[cue.Player]=Time.time;actorStrength[cue.Player]=Mathf.Lerp(.45f,1,Mathf.Clamp01(cue.Count/45f));
+            int grade=GradeForPortions(cue.Count);
+            actorAt[cue.Player]=Time.time;actorStrength[cue.Player]=.45f+grade*.28f;
             Vector3 position=FeastSystem.PlatePosition(cue.Slot,simulation.State.Angle);
-            Ring(cue.Slot,position,Actor(cue.Player),1.2f,.72f);
-            Burst(position+Vector3.up*.22f,Actor(cue.Player),BurstCount(cue.Count)/2,.6f);
+            Ring(cue.Slot,position,Actor(cue.Player),1.4f+grade*.7f,.75f+grade*.12f);
+            for(int i=0;i<grade;i++)Ring(cue.Slot,position,i%2==0?FeastView.Golden:Actor(cue.Player),2.2f+grade*.8f+i*.55f,.75f+i*.16f);
+            Burst(position+Vector3.up*.22f,Actor(cue.Player),BurstCount(cue.Count)/2,.8f+grade*.22f);
+            if(grade>=2)Burst(position+Vector3.up*(1+grade*.4f),FeastView.Golden,24*grade,1.2f+grade*.2f);
             if(cue.BonusPoints>0)
             {
                 Ring(cue.Slot,position,FeastView.Golden,2.7f,1.25f);
@@ -123,6 +140,30 @@ namespace SpinningFeast
             if(pendingArrivals.Count>=64)pendingArrivals.RemoveAt(0);
             pendingArrivals.Add(cue);
         }
+        void OnEating(EatingCue cue)
+        {
+            if(epoch!=simulation.State.Epoch)ResetForMatch();
+            EatingEvents++;
+            actorAt[cue.Player]=Time.time;actorStrength[cue.Player]=1.2f;
+            Vector3 position=FeastSystem.PlatePosition(cue.Slot,simulation.State.Angle);
+            Color actor=Actor(cue.Player);
+            Ring(cue.Slot,position,FeastView.Golden,22f,1.8f);
+            Ring(cue.Slot,position,actor,15f,1.5f);
+            Ring(cue.Slot,position,new Color(1,.97f,.7f),8f,1.1f);
+            Burst(position+Vector3.up*.6f,actor,150,2.7f);
+            Celebration(position+Vector3.up*.5f,actor,3);
+            for(int jet=0;jet<8;jet++)
+            {
+                float a=jet*Mathf.PI/4;
+                Vector3 around=new Vector3(Mathf.Sin(a)*ArenaGeometry.TableRadius*.68f,1.3f,Mathf.Cos(a)*ArenaGeometry.TableRadius*.68f);
+                Burst(around,jet%2==0?actor:FeastView.Golden,30,2.3f);
+            }
+            for(int i=0;i<96;i++)
+            {
+                float a=i*Mathf.PI*2/96;
+                Add(new Mote {Position=position+Vector3.up*.5f,Velocity=new Vector3(Mathf.Sin(a)*Random(5f,13f),Random(6f,14f),Mathf.Cos(a)*Random(5f,13f)),Color=i%3==0?FeastView.Golden:actor,Life=Random(1.4f,2.3f),Size=Random(.10f,.24f),Kind=i%4==0?1:3,Angle=a,Spin=Random(-9f,9f),Gravity=-8f});
+            }
+        }
         public float LanternPulse(int player)
         {
             float t=Time.time-actorAt[player];
@@ -139,8 +180,9 @@ namespace SpinningFeast
             if(goldBudget<=0 || ((int)(food.Seed*1000)+Time.frameCount)%19!=0)return;
             goldBudget--;
             float a=Time.time*2+food.Seed;
-            Add(new Mote {Position=(Vector3)food.Position+new Vector3(Mathf.Cos(a)*food.Scale*.55f,food.Scale*.75f,Mathf.Sin(a)*food.Scale*.55f),Velocity=Vector3.up*.3f,Color=FeastView.Golden,Life=.65f,Size=.14f,Kind=1,Spin=2});
-            Add(new Mote {Position=food.Position,Color=new Color(1,.65f,.08f,.18f),Life=.4f,Size=food.Scale*.95f,Kind=0});
+            Vector3 at=(Vector3)FoodMotion.GoldWorldPosition(food);
+            Add(new Mote {Position=at+new Vector3(Mathf.Cos(a)*food.Scale*.55f,food.Scale*.75f,Mathf.Sin(a)*food.Scale*.55f),Velocity=Vector3.up*.3f,Color=FeastView.Golden,Life=.65f,Size=.14f,Kind=1,Spin=2});
+            Add(new Mote {Position=at,Color=new Color(1,.65f,.08f,.18f),Life=.4f,Size=food.Scale*.95f,Kind=0});
         }
         public void Landing(Visual food)
         {
@@ -155,7 +197,7 @@ namespace SpinningFeast
         void LanternGlow(int player)
         {
             if(Time.frameCount%6!=player*3)return;
-            float pulse=LanternPulse(player);Vector3 at=new Vector3(player==0?-8.3f:8.3f,1.8f,1.8f);
+            float pulse=LanternPulse(player);Vector3 at=new Vector3((player==0?-1:1)*(ArenaGeometry.TableRadius+.7f),1.8f,1.8f);
             Color color=Actor(player);color.a=.10f+pulse*.13f;
             Add(new Mote {Position=at,Color=color,Life=.18f,Size=.72f+pulse*.12f,Kind=0});
             if(pulse>.2f)Add(new Mote {Position=at+new Vector3(Random(-.14f,.14f),.5f,0),Velocity=Vector3.up*.55f,Color=Actor(player),Life=.45f,Size=.035f,Kind=1,Spin=2});
@@ -168,7 +210,7 @@ namespace SpinningFeast
         }
         void ConfettiJet(int player)
         {
-            Vector3 origin=new Vector3(player==0?-7.6f:7.6f,1.2f,1.8f);
+            Vector3 origin=new Vector3((player==0?-1:1)*ArenaGeometry.TableRadius,1.2f,1.8f);
             for(int i=0;i<6;i++)
             {
                 Color color=i%3==0?new Color(1,.85f,.39f):Actor(player);
@@ -224,10 +266,25 @@ namespace SpinningFeast
             }
             foreach(var cue in pendingArrivals)
             {
-                ArrivalEvents++;servedAt[cue.Recipe]=Time.time;servedWeight[cue.Recipe]=Mathf.Clamp01(Mathf.Log(1f+cue.Count)/5);actorAt[cue.Player]=Time.time;actorStrength[cue.Player]=Mathf.Lerp(.4f,.85f,Mathf.Clamp01(cue.Count/45f));
+                int grade=GradeForPortions(cue.Count);
+                ArrivalEvents++;servedAt[cue.Recipe]=Time.time;servedWeight[cue.Recipe]=Mathf.Clamp01(Mathf.Log(1f+cue.Count)/5);actorAt[cue.Player]=Time.time;actorStrength[cue.Player]=.5f+grade*.25f;
                 Vector3 position=FeastSystem.PlatePosition(cue.Slot,simulation.State.Angle);
-                Burst(position+Vector3.up*.28f,Actor(cue.Player),BurstCount(cue.Count));
-                Ring(cue.Slot,position,Actor(cue.Player),1.8f,.65f);
+                Burst(position+Vector3.up*.28f,Actor(cue.Player),BurstCount(cue.Count),1+grade*.24f);
+                Celebration(position,Actor(cue.Player),grade);
+                Ring(cue.Slot,position,Actor(cue.Player),1.8f+grade*.75f,.7f+grade*.15f);
+                if(grade>=2)
+                {
+                    Ring(cue.Slot,position,FeastView.Golden,4f+grade,1.4f);
+                    Ring(cue.Slot,position,new Color(1,.98f,.7f),5f+grade,1.8f);
+                }
+                if(grade==3)
+                {
+                    for(int i=0;i<4;i++)
+                    {
+                        float a=i*Mathf.PI*.5f;
+                        Burst(new Vector3(Mathf.Sin(a)*5f,.7f,Mathf.Cos(a)*5f),i%2==0?Actor(cue.Player):FeastView.Golden,44,1.8f);
+                    }
+                }
                 if(cue.BonusPoints>0)
                 {
                     Ring(cue.Slot,position,FeastView.Golden,3.4f,1.45f);
@@ -333,7 +390,7 @@ namespace SpinningFeast
         }
         void OnDestroy()
         {
-            if(simulation!=null){simulation.CookingCue-=OnCooking;simulation.ArrivalCue-=OnArrival;}
+            if(simulation!=null){simulation.CookingCue-=OnCooking;simulation.ArrivalCue-=OnArrival;simulation.Eating-=OnEating;}
             foreach(var item in new Object[]{atlas,additive,alpha,ringMaterial,additiveMesh,alphaMesh,ring})if(item)Destroy(item);
         }
     }

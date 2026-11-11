@@ -252,14 +252,15 @@ namespace SpinningFeast
             Round(new Rect(inputX+1,705,598,50),Paper,16);
             Rect inputRect=new Rect(inputX,703,600,54);
 #if UNITY_WEBGL && !UNITY_EDITOR
-            if(!codex && Event.current.type==EventType.Repaint)PlaceWebInput(inputRect);
+            if(!codex && state.Phase==MatchPhase.Playing && Event.current.type==EventType.Repaint)PlaceWebInput(inputRect);
+            else if(state.Phase==MatchPhase.Countdown && Event.current.type==EventType.Repaint)HideWebInput();
 #else
             Color oldCursor=GUI.skin.settings.cursorColor;GUI.skin.settings.cursorColor=Ink;
             GUI.SetNextControlName("dish0");
-            if(!codex)inputs[0]=GUI.TextField(inputRect,inputs[0],48,inputStyle);
+            if(!codex && state.Phase==MatchPhase.Playing)inputs[0]=GUI.TextField(inputRect,inputs[0],48,inputStyle);
             else GUI.Box(inputRect,"",inputStyle);
             GUI.skin.settings.cursorColor=oldCursor;
-            if(!codex)GUI.FocusControl("dish0");
+            if(!codex && state.Phase==MatchPhase.Playing)GUI.FocusControl("dish0");
 #endif
         }
     }

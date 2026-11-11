@@ -143,7 +143,7 @@ namespace SpinningFeast
         }
         void BeginMatch()
         {
-            sim.ResetMatch();ResetPresentation();sound.Begin();
+            sim.ResetMatch(phase:MatchPhase.Countdown);ResetPresentation();sound.Begin();
         }
         void ShowTitle()
         {
@@ -220,7 +220,6 @@ namespace SpinningFeast
         {
             if(!webInputVisible)
             {
-                WebGLInput.captureAllKeyboardInput=false;
                 webInputVisible=true;
             }
             Vector3 origin=GUI.matrix.MultiplyPoint3x4(new Vector3(rect.x,rect.y,0));
@@ -231,7 +230,6 @@ namespace SpinningFeast
         {
             if(!webInputVisible)return;
             FeastWebInput_Hide();
-            WebGLInput.captureAllKeyboardInput=true;
             webInputVisible=false;
         }
 #endif
@@ -258,11 +256,11 @@ namespace SpinningFeast
             GUI.matrix=Matrix4x4.TRS(new Vector3((Screen.width-1280*scale)*.5f,(Screen.height-800*scale)*.5f,0),Quaternion.identity,Vector3.one*scale);
             var state=sim.State;Event e=Event.current;
             if(e.type==EventType.KeyDown && e.keyCode==KeyCode.F3){sound.ToggleMusic();e.Use();}
-            if(state.Phase!=MatchPhase.Playing)
+            if(state.Phase==MatchPhase.Title || state.Phase==MatchPhase.Result)
             {
                 DrawMenu(state,e);hud?.DrawTransition();GUI.matrix=Matrix4x4.identity;return;
             }
-            if(e.type==EventType.KeyDown)
+            if(state.Phase==MatchPhase.Playing && e.type==EventType.KeyDown)
             {
                 KeyCode key=e.keyCode;
                 if(HandleMatchKey(key))
@@ -271,7 +269,7 @@ namespace SpinningFeast
                     if(key==KeyCode.F5){GUI.matrix=Matrix4x4.identity;return;}
                 }
             }
-            if(!codex)
+            if(!codex && state.Phase==MatchPhase.Playing)
             {
                 DrawDishTags(scale,state.Epoch);
                 DrawIngredientHint(scale);
@@ -397,7 +395,7 @@ namespace SpinningFeast
             ScreenCapture.CaptureScreenshot(Path.Combine(path,"prototype.png"));
             yield return new WaitForSeconds(1.5f);
             bool passed=runtimeErrors==0 && sim.SuccessfulCommands>=8 && sim.State.CyanScore>0 && sim.State.OrangeScore>0;
-            File.WriteAllText(Path.Combine(path,"player-smoke.txt"),$"Result: {(passed?"PASS":"FAIL")}\nRuntime errors: {runtimeErrors}\nSuccessful commands: {sim.SuccessfulCommands}\nCyan: {sim.State.CyanScore}\nOrange: {sim.State.OrangeScore}\nVisible ECS food entities: {view.VisibleFoodCount}\nGraphics: {SystemInfo.graphicsDeviceName}\nResolution: {Screen.width}x{Screen.height}\n");
+            File.WriteAllText(Path.Combine(path,"player-smoke.txt"),$"Result: {(passed?"PASS":"FAIL")}\nRuntime errors: {runtimeErrors}\nSuccessful commands: {sim.SuccessfulCommands}\nCyan: {sim.State.CyanScore}\nOrange: {sim.State.OrangeScore}\nRendered food models: {view.VisibleFoodCount}\nTotal ECS food visuals: {view.TotalFoodCount}\nGraphics: {SystemInfo.graphicsDeviceName}\nResolution: {Screen.width}x{Screen.height}\n");
             Application.Quit(passed?0:1);
         }
         static string CapturePath()

@@ -27,7 +27,7 @@ namespace SpinningFeast
         readonly Dictionary<PrimitiveType,Mesh> furnitureMeshes=new Dictionary<PrimitiveType,Mesh>();
         Mesh ring, disc, servingPlate,shadowQuad;
         Material contactShadow;
-        readonly List<Matrix4x4> shadows=new List<Matrix4x4>(FeastSystem.Capacity);
+        readonly List<Matrix4x4> shadows=new List<Matrix4x4>(4096);
         readonly Transform[] lanternBodies=new Transform[2];
         EntityQuery visualQuery, plateQuery;
         EntityManager em;
@@ -72,6 +72,7 @@ namespace SpinningFeast
         }
         public float LastCpuMilliseconds {get;private set;}
         public int VisibleFoodCount { get; private set; }
+        public int TotalFoodCount { get; private set; }
         public bool HasHoveredIngredient {get; private set;}
         public FoodKind HoveredIngredient {get; private set;}
         public Vector3 HoveredIngredientPosition {get; private set;}
@@ -119,23 +120,23 @@ namespace SpinningFeast
             viewCamera.backgroundColor=new Color(.045f,.11f,.13f);viewCamera.clearFlags=CameraClearFlags.SolidColor;viewCamera.nearClipPlane=.1f;viewCamera.farClipPlane=90;
             cameraObject.AddComponent<AudioListener>();
             var floor=Mat(new Color(.055f,.15f,.17f)); var red=Mat(new Color(.51f,.115f,.075f)); var dark=Mat(new Color(.17f,.055f,.035f));
-            Shape("Restaurant floor",PrimitiveType.Cube,new Vector3(0,-1.4f,0),new Vector3(60,.2f,60),floor);
-            Shape("Table pedestal",PrimitiveType.Cylinder,new Vector3(0,-.8f,0),new Vector3(3,.65f,3),dark);
+            Shape("Restaurant floor",PrimitiveType.Cube,new Vector3(0,-1.4f,0),new Vector3(90,.2f,90),floor);
+            Shape("Table pedestal",PrimitiveType.Cylinder,new Vector3(0,-.8f,0),new Vector3(3*ArenaGeometry.TableScale,.65f,3*ArenaGeometry.TableScale),dark);
             Shape("Lacquer edge",PrimitiveType.Cylinder,new Vector3(0,-.23f,0),new Vector3(ArenaGeometry.TableRadius*2+.25f,.22f,ArenaGeometry.TableRadius*2+.25f),gold);
             Shape("Vermilion dining table",PrimitiveType.Cylinder,new Vector3(0,-.11f,0),new Vector3(ArenaGeometry.TableRadius*2,.14f,ArenaGeometry.TableRadius*2),red);
-            Ring("Outer gold inlay",7.46f,.035f,gold);Ring("Inner gold inlay",4.25f,.04f,gold);
+            Ring("Outer gold inlay",ArenaGeometry.TableRadius-.14f,.035f,gold);Ring("Inner gold inlay",ArenaGeometry.TurntableRadius+.25f,.04f,gold);
             var swivel=new GameObject("Rotating lazy Susan");swivel.transform.SetParent(transform);turntable=swivel.transform;
             Shape("Jade lazy Susan",PrimitiveType.Cylinder,new Vector3(0,.2f,0),new Vector3(ArenaGeometry.TurntableRadius*2,.15f,ArenaGeometry.TurntableRadius*2),jade,turntable);
-            Ring("Turntable rim",3.94f,.357f,gold,turntable);Ring("Turntable inner inlay",1.25f,.36f,gold,turntable);
+            Ring("Turntable rim",ArenaGeometry.TurntableRadius-.06f,.357f,gold,turntable);Ring("Turntable inner inlay",ArenaGeometry.TurntableRadius*.3125f,.36f,gold,turntable);
             for(int i=0;i<12;i++)
             {
                 float a=i*Mathf.PI/6;
-                var tile=Shape("Radial inlay",PrimitiveType.Cube,new Vector3(Mathf.Sin(a)*.72f,.363f,Mathf.Cos(a)*.72f),new Vector3(.02f,.008f,.25f),gold,turntable);
+                var tile=Shape("Radial inlay",PrimitiveType.Cube,new Vector3(Mathf.Sin(a)*.72f*ArenaGeometry.TableScale,.363f,Mathf.Cos(a)*.72f*ArenaGeometry.TableScale),new Vector3(.02f*ArenaGeometry.TableScale,.008f,.25f*ArenaGeometry.TableScale),gold,turntable);
                 tile.transform.localRotation=Quaternion.Euler(0,a*Mathf.Rad2Deg,0);
             }
             for(int p=0;p<2;p++)
             {
-                var m=p==0?cyan:orange; float x=p==0?-8.3f:8.3f;
+                var m=p==0?cyan:orange; float x=(p==0?-1:1)*(ArenaGeometry.TableRadius+.7f);
                 lanternBodies[p]=Shape("Player lantern",PrimitiveType.Sphere,new Vector3(x,1.8f,1.8f),new Vector3(.65f,1,.65f),m).transform;
                 Shape("Lantern cap",PrimitiveType.Cylinder,new Vector3(x,2.3f,1.8f),new Vector3(.4f,.06f,.4f),gold);
                 Shape("Lantern tassel",PrimitiveType.Cylinder,new Vector3(x,1.1f,1.8f),new Vector3(.05f,.23f,.05f),gold);
@@ -147,6 +148,28 @@ namespace SpinningFeast
             var rp=new RenderParams(material) { camera=viewCamera, shadowCastingMode=ShadowCastingMode.Off, receiveShadows=false, matProps=props };
             Graphics.RenderMesh(rp,mesh,0,matrix);
         }
+        Matrix4x4 FoodTransform(Visual v)
+        {
+            var q=Quaternion.Euler(Mathf.Sin(v.Seed)*9,(v.Seed+v.OrbitAngle)*Mathf.Rad2Deg,Mathf.Cos(v.Seed)*12);
+            if(v.Scatter>0)q*=Quaternion.Euler(Mathf.Sin(v.Life*19+v.Seed)*v.Scatter*38,0,Mathf.Cos(v.Life*17+v.Seed)*v.Scatter*32);
+            Vector3 stretch=new Vector3(1+v.Impact*.07f,1-v.Impact*.12f,1+v.Impact*.07f);
+            float hop=GoldenHop(v);
+            if(hop>0 || (v.Golden!=0 && Mathf.Abs(v.Position.y-v.Floor)<.08f))
+            {
+                float landing=Mathf.Pow(1-hop,8);
+                stretch=Vector3.Scale(stretch,new Vector3(1+.12f*landing-.07f*hop,1-.16f*landing+.15f*hop,1+.12f*landing-.07f*hop));
+            }
+            return Matrix4x4.TRS((Vector3)FoodMotion.GoldWorldPosition(v),q,stretch*v.Scale);
+        }
+        float GoldenHop(Visual v)
+        {
+            return v.Golden!=0 && v.Mode==0?Mathf.Clamp01((v.Position.y-v.Floor)/6f):0;
+        }
+        float FoodHitRadius(Visual v)
+        {
+            float extent=foods[(int)v.Kind].bounds.extents.magnitude;
+            return Mathf.Max(18,extent*1.25f*v.Scale*(1+v.Impact*.07f)*Screen.height/(viewCamera.orthographicSize*2));
+        }
         void LateUpdate()
         {
             if(simulation==null || !em.Exists(simulation.MatchEntity)) return;
@@ -154,8 +177,21 @@ namespace SpinningFeast
             em.CompleteAllTrackedJobs(); MatchState state=simulation.State;
             RefreshPreview(state);
             turntable.localRotation=Quaternion.Euler(0,state.Angle*Mathf.Rad2Deg,0);
-            // Keep the full table visible on narrow windows without moving the camera.
-            viewCamera.orthographicSize=Mathf.Max(ArenaGeometry.CameraHalfHeight,9f/viewCamera.aspect);
+            // Preserve the fixed angle while widening the view as platters rise
+            // into additional tiers. This also keeps the full table in frame.
+            float halfHeight=Mathf.Max(ArenaGeometry.CameraHalfHeight,(ArenaGeometry.TableRadius+.6f)/viewCamera.aspect);
+            Vector3 viewTarget=new Vector3(0,.3f,0),cameraUp=viewCamera.transform.up,cameraRight=viewCamera.transform.right;
+            using(var plateEntities=plateQuery.ToEntityArray(Allocator.Temp))foreach(Entity plateEntity in plateEntities)
+            {
+                var plate=em.GetComponentData<Plate>(plateEntity);
+                var stock=em.GetComponentData<Stock>(plateEntity);
+                if(stock.Quantity+plate.Incoming<=0)continue;
+                Vector3 plateCenter=FeastSystem.PlatePosition(plate.Slot,state.Angle);
+                Vector3 offset=plateCenter+Vector3.up*.85f-viewTarget;
+                halfHeight=Mathf.Max(halfHeight,Mathf.Abs(Vector3.Dot(offset,cameraUp))+1.5f);
+                halfHeight=Mathf.Max(halfHeight,(Mathf.Abs(Vector3.Dot(offset,cameraRight))+1.5f)/viewCamera.aspect);
+            }
+            viewCamera.orthographicSize=halfHeight;
             for(int player=0;player<2;player++)
             {
                 float pulse=Effects!=null?Effects.LanternPulse(player):0;
@@ -163,41 +199,51 @@ namespace SpinningFeast
                 (player==0?cyan:orange).SetFloat("_Glow",.25f+pulse*.65f);
             }
             foreach(var b in batches) b.Clear();shadows.Clear();
-            dishTags.Clear();TagEpoch=state.Epoch;
+            dishTags.Clear();
+            TagEpoch=state.Epoch;
             HasHoveredIngredient=false;float nearestHit=float.PositiveInfinity;
             Matrix4x4 hoveredMatrix=Matrix4x4.identity;
             Ray hoverRay=viewCamera.ScreenPointToRay(Input.mousePosition);
             using(var vs=visualQuery.ToComponentDataArray<Visual>(Allocator.Temp))
             {
-                VisibleFoodCount=vs.Length;
-                foreach(var v in vs)
+                TotalFoodCount=vs.Length;VisibleFoodCount=0;
+                for(int i=0;i<vs.Length;i++)
                 {
+                    var v=vs[i];
                     if(v.Mode==2) continue;
+                    VisibleFoodCount++;
                     if(v.Mode==0 && v.Position.y<3.2f)
                     {
-                        float size=v.Scale*(.45f+Mathf.Max(0,v.Position.y-v.Floor)*.08f);
-                        shadows.Add(Matrix4x4.TRS(new Vector3(v.Position.x,.035f+(v.Seed%1)*.0002f,v.Position.z),Quaternion.identity,new Vector3(size,1,size)));
+                        float size=v.Scale*(.45f+Mathf.Max(0,v.Position.y-v.Floor)*.08f)*(1-.38f*GoldenHop(v));
+                        float shadowY=v.Floor<0?-1.295f:.035f;
+                        float3 at=FoodMotion.GoldWorldPosition(v);
+                        shadows.Add(Matrix4x4.TRS(new Vector3(at.x,shadowY+(v.Seed%1)*.0002f,at.z),Quaternion.identity,new Vector3(size,1,size)));
                     }
-                    if(v.Mode==1 && Effects!=null)Effects.Trace(v);
+                    if((v.Mode==1 || v.Mode==4) && Effects!=null)Effects.Trace(v);
                     if(v.Mode==0 && Effects!=null){Effects.Landing(v);if(v.Golden!=0)Effects.GoldenSparkle(v);}
-                    float shrink=v.Mode==1?Mathf.Lerp(1,.3f,Mathf.Pow(v.Life/v.Duration,4)):1;
-                    var q=v.Mode==0?Quaternion.Euler(Mathf.Sin(v.Seed)*9,v.Seed*Mathf.Rad2Deg,Mathf.Cos(v.Seed)*12):Quaternion.Euler(v.Seed*30,v.Seed*60+(v.Mode==1?v.Life*360:0),v.Seed*17);
-                    if(v.Mode==0 && v.Scatter>0)q*=Quaternion.Euler(Mathf.Sin(v.Life*19+v.Seed)*v.Scatter*38,0,Mathf.Cos(v.Life*17+v.Seed)*v.Scatter*32);
-                    Vector3 stretch=v.Mode==0?new Vector3(1+v.Impact*.07f,1-v.Impact*.12f,1+v.Impact*.07f):Vector3.one;
-                    var matrix=Matrix4x4.TRS(v.Position,q,stretch*v.Scale*shrink);
+                    Matrix4x4 matrix;
+                    if(v.Mode==0)matrix=FoodTransform(v);
+                    else
+                    {
+                        float shrink=v.Mode==1?Mathf.Lerp(1,.3f,Mathf.Pow(v.Life/v.Duration,4)):v.Mode==4?Mathf.Lerp(1,.25f,Mathf.Pow(Mathf.Clamp01(v.Life/v.Duration),3)):1;
+                        var q=Quaternion.Euler(v.Seed*30,v.Seed*60+(v.Mode==1?v.Life*360:0),v.Seed*17);
+                        matrix=Matrix4x4.TRS(v.Position,q,Vector3.one*v.Scale*shrink);
+                    }
                     if(v.Mode==0 && (int)v.Kind<Cookbook.RawCount)
                     {
-                        Vector3 screen=viewCamera.WorldToScreenPoint(v.Position);
-                        float radius=Mathf.Max(10,foods[(int)v.Kind].bounds.extents.magnitude*v.Scale*(1+v.Impact*.07f)*Screen.height/(viewCamera.orthographicSize*2));
+                        Bounds hitBounds=foods[(int)v.Kind].bounds;
+                        hitBounds.extents=hitBounds.extents*1.25f;
+                        Vector3 screen=viewCamera.WorldToScreenPoint(matrix.MultiplyPoint3x4(Vector3.zero));
+                        float radius=FoodHitRadius(v);
                         Vector2 delta=new Vector2(screen.x-Input.mousePosition.x,screen.y-Input.mousePosition.y);
                         if(screen.z>0 && delta.sqrMagnitude<radius*radius)
                         {
                             Matrix4x4 inverse=matrix.inverse;
                             var localRay=new Ray(inverse.MultiplyPoint3x4(hoverRay.origin),inverse.MultiplyVector(hoverRay.direction));
-                            if(foods[(int)v.Kind].bounds.IntersectRay(localRay,out float distance))
+                            if(hitBounds.IntersectRay(localRay,out float distance))
                             {
                                 float worldDistance=Vector3.Distance(hoverRay.origin,matrix.MultiplyPoint3x4(localRay.GetPoint(distance)));
-                                if(worldDistance<nearestHit){nearestHit=worldDistance;HasHoveredIngredient=true;HoveredIngredient=v.Kind;HoveredIngredientPosition=v.Position;hoveredMatrix=matrix;}
+                                if(worldDistance<nearestHit){nearestHit=worldDistance;HasHoveredIngredient=true;HoveredIngredient=v.Kind;HoveredIngredientPosition=matrix.MultiplyPoint3x4(Vector3.zero);hoveredMatrix=matrix;}
                             }
                         }
                     }
@@ -216,7 +262,7 @@ namespace SpinningFeast
                     }
                     else
                     {
-                        int variant=v.Mode==1?v.Player+1:0;
+                        int variant=v.Mode==1 || v.Mode==4?v.Player+1:0;
                         if(v.Mode==0 && previewRemaining[(int)v.Kind]>0)
                         {previewRemaining[(int)v.Kind]--;HighlightedFoodCount++;variant=previewPlayer+3;if(Effects!=null)Effects.Anticipation(v,previewPlayer);}
                         if(v.Golden!=0)variant=5;
@@ -238,8 +284,8 @@ namespace SpinningFeast
                 float bounce=Effects!=null?Effects.DishBounce(p.Recipe):0;
                 float reveal=Effects!=null?Effects.PlatterReveal(p.Recipe):1;
                 position.y+=Mathf.Max(0,bounce)*.28f+(1-reveal)*.12f;
-                if(total>0) dishTags.Add(new DishTag {Recipe=p.Recipe,Player=p.LastPlayer,Slot=p.Slot,Position=position+Vector3.up*.3f*ArenaGeometry.FoodModelScale});
-                float radius=(.40f+.32f*(1-Mathf.Exp(-(total+p.Incoming)/25f)))*ArenaGeometry.FoodModelScale;
+                if(total>0) dishTags.Add(new DishTag {Recipe=p.Recipe,Player=p.LastPlayer,Slot=p.Slot,Position=position+Vector3.up*.3f*ArenaGeometry.FoodModelScale*ArenaGeometry.TableScale});
+                float radius=(.40f+.32f*(1-Mathf.Exp(-(total+p.Incoming)/25f)))*ArenaGeometry.FoodModelScale*ArenaGeometry.TableScale;
                 radius*=(1-bounce*.35f)*reveal;
                 float pulse=.018f*Mathf.Sin(Time.time*5+p.Recipe);
                 if(total>0 && Effects!=null)
@@ -260,7 +306,7 @@ namespace SpinningFeast
                 Draw(ring,gold,Matrix4x4.TRS(position+Vector3.up*.008f,Quaternion.identity,Vector3.one*radius));
                 Draw(ring,p.LastPlayer==0?cyan:orange,Matrix4x4.TRS(position+Vector3.up*.012f,Quaternion.identity,Vector3.one*(radius+.045f+pulse)));
                 // Counts stay exact in Stock; logarithmic height and representative pieces keep plating legible.
-                int pieces=Mathf.Min(total,64);float height=(.06f+Mathf.Log(1+total)*.045f)*ArenaGeometry.FoodModelScale;
+                int pieces=Mathf.Min(total,64);float height=(.06f+Mathf.Log(1+total)*.045f)*ArenaGeometry.FoodModelScale*ArenaGeometry.TableScale;
                 if(composed && total>0)
                 {
                     float foodRadius=radius*.88f;
@@ -271,17 +317,17 @@ namespace SpinningFeast
                 {
                     float a=j*2.39996f+state.Angle;float r=Mathf.Sqrt((j%16)/16f)*radius*.67f;
                     Vector3 pos=position+new Vector3(Mathf.Sin(a)*r,.08f+(j/16)*height*.46f,Mathf.Cos(a)*r);
-                    float size=((total<4?.40f:.30f)+Mathf.Min(total,180)*.00035f)*ArenaGeometry.FoodModelScale;
+                    float size=((total<4?.40f:.30f)+Mathf.Min(total,180)*.00035f)*ArenaGeometry.FoodModelScale*ArenaGeometry.TableScale;
                     batches[(int)stock.Kind*Variants+dishVariant].Add(Matrix4x4.TRS(pos,Quaternion.Euler(0,a*Mathf.Rad2Deg,0),Vector3.one*size));
                 }
                 if(p.Incoming>0)
                 {
                     Color c=p.LastPlayer==0?Cyan:Orange;c.a=.22f;ghostProps.SetColor("_Tint",c);
-                    Draw(foods[(int)stock.Kind],ghost,Matrix4x4.TRS(position+Vector3.up*.35f,Quaternion.Euler(0,Time.time*80,0),Vector3.one*(.6f*reveal*ArenaGeometry.FoodModelScale)),ghostProps);
+                    Draw(foods[(int)stock.Kind],ghost,Matrix4x4.TRS(position+Vector3.up*.35f*ArenaGeometry.TableScale,Quaternion.Euler(0,Time.time*80,0),Vector3.one*(.6f*reveal*ArenaGeometry.FoodModelScale*ArenaGeometry.TableScale)),ghostProps);
                 }
             }
             dishTags.Sort((a,b)=>a.Slot.CompareTo(b.Slot));
-            var shadowParams=new RenderParams(contactShadow){camera=viewCamera,worldBounds=new Bounds(Vector3.zero,Vector3.one*50),shadowCastingMode=ShadowCastingMode.Off,receiveShadows=false};
+            var shadowParams=new RenderParams(contactShadow){camera=viewCamera,worldBounds=new Bounds(Vector3.zero,Vector3.one*90),shadowCastingMode=ShadowCastingMode.Off,receiveShadows=false};
             for(int offset=0;SystemInfo.graphicsDeviceType!=GraphicsDeviceType.Null && offset<shadows.Count;offset+=chunk.Length)
             {
                 int count=Mathf.Min(chunk.Length,shadows.Count-offset);shadows.CopyTo(offset,chunk,0,count);
@@ -289,7 +335,7 @@ namespace SpinningFeast
             }
             for(int i=0;SystemInfo.graphicsDeviceType!=GraphicsDeviceType.Null && i<batches.Length;i++)
             {
-                var list=batches[i];var rp=new RenderParams(i/Variants>=Cookbook.RawCount?cookedMaterials[i%Variants]:foodMaterials[i%Variants]) {camera=viewCamera,worldBounds=new Bounds(Vector3.zero,Vector3.one*40),shadowCastingMode=ShadowCastingMode.Off,receiveShadows=false};
+                var list=batches[i];var rp=new RenderParams(i/Variants>=Cookbook.RawCount?cookedMaterials[i%Variants]:foodMaterials[i%Variants]) {camera=viewCamera,worldBounds=new Bounds(Vector3.zero,Vector3.one*90),shadowCastingMode=ShadowCastingMode.Off,receiveShadows=false};
                 for(int offset=0;offset<list.Count;offset+=chunk.Length)
                 {int count=Mathf.Min(chunk.Length,list.Count-offset);list.CopyTo(offset,chunk,0,count);Graphics.RenderMeshInstanced(rp,foods[i/Variants],0,chunk,count);}
             }

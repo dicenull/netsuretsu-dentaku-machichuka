@@ -30,7 +30,7 @@ namespace SpinningFeast
             sim.RainEnabled=false;sim.ResetMatch(initial:0);ResetPresentation();sound.Begin();
             add(FoodKind.Rice,120);add(FoodKind.Egg,180);add(FoodKind.Carrot,60);
             inputs[0]="chahan";yield return new WaitForSeconds(.3f);
-            check(view.PreviewServings==60 && view.HighlightedFoodCount==240,"typing previews the exact raw allocation");
+            check(view.PreviewServings==60 && view.HighlightedFoodCount==240,"typing previews the exact batch while highlighting all allocated stock");
             check(sim.State.CyanScore==0 && sim.Inventory()[(int)FoodKind.Rice]==120,"preview never reserves or consumes ingredients");
             inputs[0]="";yield return new WaitForSeconds(.05f);
             check(view.PreviewServings==0 && view.HighlightedFoodCount==0,"clearing input clears anticipation glow");

@@ -1,4 +1,4 @@
-PASS typing previews the exact raw allocation
+PASS typing previews the exact batch while highlighting all allocated stock
 PASS preview never reserves or consumes ingredients
 PASS clearing input clears anticipation glow
 PASS bulk cooking emits its spark trail
@@ -27,8 +27,8 @@ PASS full-match presentation remains within particle budget
 PASS countdown sounds once per final second
 PASS camera stays fixed through all celebrations
 Successful commands: 92
-Peak particles: 740
-Frame interval median / p95 (ms): 16.67 / 16.82
+Peak particles: 1127
+Frame interval median / p95 (ms): 16.67 / 16.86
 Graphics: Null Device; batch mode: True
 PASS return to title clears match effects while keeping subtle lantern ambience
 PASS no runtime errors
