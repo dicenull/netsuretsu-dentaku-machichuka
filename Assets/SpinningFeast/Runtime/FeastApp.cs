@@ -57,7 +57,8 @@ namespace SpinningFeast
             Input.imeCompositionMode=IMECompositionMode.On;
 #endif
             bool effectsProbe=Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-effects-test")>=0;
-            smoke=effectsProbe || Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-smoke")>=0;
+            bool gifCapture=Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-gif-capture")>=0;
+            smoke=effectsProbe || gifCapture || Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-smoke")>=0;
             cpuLevel=smoke?1:FeastCpu.ClampLevel(PlayerPrefs.GetInt("feast.cpu-level",1));
             sim=World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<FeastSystem>();
             sim.SaveDiscoveries=!smoke;sim.ResetMatch(phase:smoke?MatchPhase.Playing:MatchPhase.Title);
@@ -72,7 +73,7 @@ namespace SpinningFeast
             webInputOwner=this;
             FeastWebInput_Create(WebInputHandler);
 #endif
-            if(smoke) StartCoroutine(effectsProbe?EffectsProbe():SmokeRun());
+            if(smoke) StartCoroutine(effectsProbe?EffectsProbe():gifCapture?CaptureCookGif():SmokeRun());
         }
         void CountErrors(string condition,string stack,LogType type) {if(type==LogType.Error || type==LogType.Exception || type==LogType.Assert) runtimeErrors++;}
         void OnCooked(int player,int recipe,int servings) {flashes[player]=1;failed[player]=false;sound.Cook(player,recipe,servings);}
@@ -378,6 +379,22 @@ namespace SpinningFeast
             Matrix4x4 old=GUI.matrix;
             GUI.matrix=old*Matrix4x4.TRS(start,Quaternion.Euler(0,0,Mathf.Atan2(d.y,d.x)*Mathf.Rad2Deg),Vector3.one);
             Fill(new Rect(0,-.6f,length,1.2f),color);GUI.matrix=old;
+        }
+        IEnumerator CaptureCookGif()
+        {
+            string path=CapturePath();
+            sim.RainEnabled=false;
+            yield return new WaitForSecondsRealtime(.7f);
+            for(int frame=0;frame<42;frame++)
+            {
+                if(frame==5)Send(0,Cookbook.Find("mapo"));
+                yield return new WaitForEndOfFrame();
+                ScreenCapture.CaptureScreenshot(Path.Combine(path,$"frame-{frame:D3}.png"));
+                yield return new WaitForSecondsRealtime(.09f);
+            }
+            yield return new WaitForSecondsRealtime(2f);
+            File.WriteAllText(Path.Combine(path,"capture.txt"),$"Cooked commands: {sim.SuccessfulCommands}\nRuntime errors: {runtimeErrors}\nResolution: {Screen.width}x{Screen.height}\n");
+            Application.Quit(sim.SuccessfulCommands>0 && runtimeErrors==0?0:1);
         }
         IEnumerator SmokeRun()
         {
