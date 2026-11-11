@@ -1,2 +1,2 @@
-PASS: 1482 assertions
+PASS: 1495 assertions
 Contention, maximum batches, reservation, sharing, chaining, discovery, replay rejection, merging, deadline, reset, 10000 starting ingredients, lazy-Susan stock flow, uncapped rain and table-edge spill.

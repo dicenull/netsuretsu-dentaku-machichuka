@@ -445,8 +445,9 @@ namespace SpinningFeast.Editor
                 for(int i=0;i<15 && eatingCues.Count==0;i++)tick(1);
                 check(eatingCues.Count==1,"an eligible completed dish is selected at a random interval");
                 var eaten=eatingCues[0];
-                check(eaten.Player==1 && eaten.Recipe==0 && eaten.Count>=1 && eaten.Count<=5 && eaten.Points==eaten.Count*Cookbook.All[0].Points,"eating credits the last cook for exactly the portions taken");
-                check(s.State.CyanScore==firstScore && s.State.OrangeScore==lastScore+eaten.Points && s.Inventory()[(int)FoodKind.FriedRice]==5-eaten.Count,"eating changes only the last cook's score and shared stock");
+                check(eaten.Player==1 && eaten.Recipe==0 && eaten.Count==5 && eaten.Points==5*Cookbook.All[0].Points,"eating credits the last cook for the whole shared platter");
+                check(s.State.CyanScore==firstScore && s.State.OrangeScore==lastScore+eaten.Points && s.Inventory()[(int)FoodKind.FriedRice]==0,"eating removes all servings from shared stock");
+                using(var q=em.CreateEntityQuery(typeof(Plate)))check(q.CalculateEntityCount()==0,"eaten dish and its platter disappear from the table");
                 var cookedRows=s.MatchDishes();
                 check(cookedRows.Length==2 && cookedRows[0].EatenPoints==0 && cookedRows[1].EatenCount==eaten.Count && cookedRows[1].EatenPoints==eaten.Points,"result ledger preserves who cooked and who earned the eating bonus");
                 using(var q=em.CreateEntityQuery(typeof(Visual)))using(var all=q.ToComponentDataArray<Visual>(Allocator.Temp))

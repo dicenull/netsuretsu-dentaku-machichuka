@@ -270,10 +270,9 @@ namespace SpinningFeast
             if(chosen==Entity.Null)return;
             var plate=EntityManager.GetComponentData<Plate>(chosen);
             var stock=EntityManager.GetComponentData<Stock>(chosen);
-            int count=math.min(stock.Quantity,math.max(1,(int)math.ceil(stock.Quantity*random.NextFloat(.12f,.25f))));
-            count=math.min(count,24);
+            int count=stock.Quantity;
             int points=count*Cookbook.All[plate.Recipe].Points;
-            stock.Quantity-=count;EntityManager.SetComponentData(chosen,stock);
+            stock.Quantity=0;EntityManager.SetComponentData(chosen,stock);
             if(plate.LastPlayer==0)state.CyanScore+=points;else state.OrangeScore+=points;
             RecordEating(plate.LastPlayer,plate.Recipe,count,points);
             var cue=new EatingCue {Player=plate.LastPlayer,Recipe=plate.Recipe,Count=count,Slot=plate.Slot,Points=points};
