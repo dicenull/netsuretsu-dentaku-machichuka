@@ -15,10 +15,38 @@ namespace SpinningFeast
         public static readonly Color Cyan = new Color(.2f,.94f,1);
         public static readonly Color Orange = new Color(1,.48f,.16f);
         const int Variants=6;
+        bool mobileRendering;
+        bool mobileBaseline;
+        bool smallGeometry;
+        readonly Mesh[] smallFoods=new Mesh[Cookbook.RawCount];
+        readonly List<Matrix4x4>[] smallBatches=new List<Matrix4x4>[Cookbook.RawCount*Variants];
+        readonly uint[] smallTriangles=new uint[Cookbook.RawCount];
+        readonly int[] smallVertices=new int[Cookbook.RawCount];
+        public int SmallGeometryCount {get;private set;}
+        public bool UsesSmallGeometry=>smallGeometry;
+        FeastFoodImpostors impostors;
+        readonly Dictionary<float,bool> impostorLod=new Dictionary<float,bool>();
+        int impostorEpoch=-1;
+        public int ImpostorCount=>impostors!=null?impostors.AddedCount:0;
+        public bool ImpostorsReady=>impostors!=null && impostors.Ready;
+        readonly float[] foodRadii=new float[Cookbook.KindCount];
+        readonly long[] foodVertexBytes=new long[Cookbook.KindCount],smallVertexBytes=new long[Cookbook.RawCount];
+        public long SubmittedVertexInputBytes {get;private set;}
+        readonly int[] foodVertices=new int[Cookbook.KindCount];
+        public long SubmittedFoodVertices {get;private set;}
+        public float ShadowQuadScreenCoverage {get;private set;}
+        readonly uint[] foodTriangles=new uint[Cookbook.KindCount];
+        public long SubmittedFoodTriangles {get;private set;}
+        public int SubmittedDrawCalls {get;private set;}
+        public int SubmittedShadowInstances {get;private set;}
+        public long SubmittedMatrixBytes {get;private set;}
+        public bool UsesMobileShader=>mobileRendering && !mobileBaseline;
+        public bool UsesMobileGeometry=>mobileRendering;
         public static readonly Color Golden = new Color(1,.73f,.12f);
         readonly Mesh[] foods = new Mesh[Cookbook.KindCount];
         readonly List<Matrix4x4>[] batches = new List<Matrix4x4>[Cookbook.KindCount*Variants];
-        readonly Matrix4x4[] chunk = new Matrix4x4[256];
+        readonly Matrix4x4[] chunk = new Matrix4x4[500];
+        int BatchSize=>smallGeometry?500:256;
         readonly List<UnityEngine.Object> resources = new List<UnityEngine.Object>();
         readonly List<GameObject> scenery = new List<GameObject>();
         readonly Material[] foodMaterials = new Material[Variants];
@@ -80,12 +108,19 @@ namespace SpinningFeast
         {
             simulation = system; em = system.EntityManager; queryWorld=system.World; ghostProps=new MaterialPropertyBlock();
             visualQuery=em.CreateEntityQuery(typeof(Visual)); plateQuery=em.CreateEntityQuery(typeof(Plate),typeof(Stock));
-            for(int i=0;i<foods.Length;i++) { foods[i]=FeastMeshes.Food((FoodKind)i); resources.Add(foods[i]); }
+            mobileRendering=Application.isMobilePlatform || Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-mobile-rendering")>=0;
+            mobileBaseline=Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-mobile-baseline")>=0;
+            for(int i=0;i<foods.Length;i++) { foods[i]=FeastMeshes.Food((FoodKind)i,!mobileRendering); foodTriangles[i]=foods[i].GetIndexCount(0)/3; foodVertices[i]=foods[i].vertexCount;foodRadii[i]=foods[i].bounds.extents.magnitude;for(int stream=0;stream<foods[i].vertexBufferCount;stream++)foodVertexBytes[i]+=(long)foodVertices[i]*foods[i].GetVertexBufferStride(stream); resources.Add(foods[i]); }
+            smallGeometry=!mobileBaseline && Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-full-geometry")<0
+                && (mobileRendering || Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-small-geometry")>=0);
+            for(int i=0;i<Cookbook.RawCount;i++)if(smallGeometry){smallFoods[i]=FeastMeshes.Food((FoodKind)i,false,true);smallTriangles[i]=smallFoods[i].GetIndexCount(0)/3;smallVertices[i]=smallFoods[i].vertexCount;for(int stream=0;stream<smallFoods[i].vertexBufferCount;stream++)smallVertexBytes[i]+=(long)smallVertices[i]*smallFoods[i].GetVertexBufferStride(stream);resources.Add(smallFoods[i]);}
+            for(int i=0;i<smallBatches.Length;i++)smallBatches[i]=new List<Matrix4x4>();
             for(int i=0;i<batches.Length;i++) batches[i]=new List<Matrix4x4>(i/Variants<Cookbook.RawCount?128:8);
             foodMaterials[0]=Mat(Color.white); foodMaterials[1]=Mat(Color.Lerp(Color.white,Cyan,.4f),.45f); foodMaterials[2]=Mat(Color.Lerp(Color.white,Orange,.4f),.45f);
             foodMaterials[3]=Mat(Color.Lerp(Color.white,Cyan,.22f),.12f);foodMaterials[4]=Mat(Color.Lerp(Color.white,Orange,.22f),.12f);
             foodMaterials[5]=Mat(Golden,.18f);foodMaterials[5].SetFloat("_Gold",1);foodMaterials[5].SetFloat("_Specular",.85f);foodMaterials[5].SetFloat("_Gloss",.8f);
             for(int i=0;i<Variants;i++){cookedMaterials[i]=new Material(foodMaterials[i]);cookedMaterials[i].SetFloat("_Specular",.48f);cookedMaterials[i].SetFloat("_Gloss",.7f);resources.Add(cookedMaterials[i]);}
+            if(UsesMobileShader)for(int i=0;i<5;i++)foodMaterials[i].EnableKeyword("FEAST_NO_SPECULAR");
             white=Mat(new Color(.96f,.94f,.83f));white.SetFloat("_Specular",.22f); gold=Mat(new Color(.88f,.64f,.28f)); jade=Mat(new Color(.08f,.32f,.29f)); cyan=Mat(Cyan,.25f); orange=Mat(Orange,.25f);
             ghost=new Material(Shader.Find("SpinningFeast/Ghost")) {enableInstancing=true}; resources.Add(ghost);
             missingGhost=new Material(ghost) {renderQueue=3100};missingGhost.SetFloat("_DepthTest",(float)CompareFunction.Always);missingGhost.SetFloat("_ColorMix",.7f);missingGhost.SetFloat("_Hologram",1);resources.Add(missingGhost);
@@ -97,6 +132,8 @@ namespace SpinningFeast
             shadowQuad.triangles=new[]{0,1,2,0,2,3};shadowQuad.RecalculateBounds();resources.Add(shadowQuad);
             contactShadow=new Material(Shader.Find("SpinningFeast/ContactShadow")){enableInstancing=true};resources.Add(contactShadow);
             BuildRoom();
+            if(!mobileBaseline && Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-food-impostors")>=0)
+            {impostors=new FeastFoodImpostors();impostors.Initialize(foods,foodMaterials,viewCamera);}
         }
         Material Mat(Color color,float glow=0)
         { var m=new Material(Shader.Find("SpinningFeast/Lit")) { enableInstancing=true }; m.SetColor("_Tint",color);m.SetFloat("_Glow",glow);resources.Add(m);return m; }
@@ -104,7 +141,7 @@ namespace SpinningFeast
         {
             var go=GameObject.CreatePrimitive(primitive);go.name=name;go.transform.SetParent(parent==null?transform:parent,false);go.transform.localPosition=pos;go.transform.localScale=size;
             var filter=go.GetComponent<MeshFilter>();
-            if(!furnitureMeshes.TryGetValue(primitive,out var mesh)) {mesh=FeastMeshes.DoubleTriangles(filter.sharedMesh);furnitureMeshes.Add(primitive,mesh);resources.Add(mesh);}
+            if(!furnitureMeshes.TryGetValue(primitive,out var mesh)) {mesh=mobileRendering?Instantiate(filter.sharedMesh):FeastMeshes.DoubleTriangles(filter.sharedMesh);furnitureMeshes.Add(primitive,mesh);resources.Add(mesh);}
             filter.sharedMesh=mesh;
             Destroy(go.GetComponent<Collider>());go.GetComponent<Renderer>().sharedMaterial=mat;scenery.Add(go);return go;
         }
@@ -147,6 +184,7 @@ namespace SpinningFeast
             if(SystemInfo.graphicsDeviceType==GraphicsDeviceType.Null)return;
             var rp=new RenderParams(material) { camera=viewCamera, shadowCastingMode=ShadowCastingMode.Off, receiveShadows=false, matProps=props };
             Graphics.RenderMesh(rp,mesh,0,matrix);
+            SubmittedDrawCalls++;SubmittedMatrixBytes+=64;
         }
         Matrix4x4 FoodTransform(Visual v)
         {
@@ -167,14 +205,18 @@ namespace SpinningFeast
         }
         float FoodHitRadius(Visual v)
         {
-            float extent=foods[(int)v.Kind].bounds.extents.magnitude;
+            float extent=foodRadii[(int)v.Kind];
             return Mathf.Max(18,extent*1.25f*v.Scale*(1+v.Impact*.07f)*Screen.height/(viewCamera.orthographicSize*2));
         }
         void LateUpdate()
         {
             if(simulation==null || !em.Exists(simulation.MatchEntity)) return;
             long started=System.Diagnostics.Stopwatch.GetTimestamp();
+            SubmittedFoodTriangles=0;SubmittedFoodVertices=0;SubmittedVertexInputBytes=0;SmallGeometryCount=0;ShadowQuadScreenCoverage=0;SubmittedDrawCalls=0;SubmittedMatrixBytes=0;SubmittedShadowInstances=0;
             em.CompleteAllTrackedJobs(); MatchState state=simulation.State;
+            if(impostorEpoch!=state.Epoch){impostorEpoch=state.Epoch;impostorLod.Clear();}
+            if(impostors!=null)impostors.BeginFrame();
+            int previousHover=HasHoveredIngredient?(int)HoveredIngredient:-1;
             RefreshPreview(state);
             turntable.localRotation=Quaternion.Euler(0,state.Angle*Mathf.Rad2Deg,0);
             // Preserve the fixed angle while widening the view as platters rise
@@ -198,12 +240,15 @@ namespace SpinningFeast
                 lanternBodies[player].localScale=new Vector3(.65f*(1+pulse*.14f),1-pulse*.06f,.65f*(1+pulse*.14f));
                 (player==0?cyan:orange).SetFloat("_Glow",.25f+pulse*.65f);
             }
-            foreach(var b in batches) b.Clear();shadows.Clear();
+            foreach(var b in batches) b.Clear();foreach(var b in smallBatches)b.Clear();shadows.Clear();
             dishTags.Clear();
             TagEpoch=state.Epoch;
             HasHoveredIngredient=false;float nearestHit=float.PositiveInfinity;
             Matrix4x4 hoveredMatrix=Matrix4x4.identity;
-            Ray hoverRay=viewCamera.ScreenPointToRay(Input.mousePosition);
+            // Mobile has no passive pointer: preserve all food, skip only idle hit testing.
+            bool testHover=!mobileRendering || Input.touchCount>0;
+            Vector3 pointer=Input.mousePosition;
+            Ray hoverRay=testHover?viewCamera.ScreenPointToRay(pointer):default;
             using(var vs=visualQuery.ToComponentDataArray<Visual>(Allocator.Temp))
             {
                 TotalFoodCount=vs.Length;VisibleFoodCount=0;
@@ -229,13 +274,13 @@ namespace SpinningFeast
                         var q=Quaternion.Euler(v.Seed*30,v.Seed*60+(v.Mode==1?v.Life*360:0),v.Seed*17);
                         matrix=Matrix4x4.TRS(v.Position,q,Vector3.one*v.Scale*shrink);
                     }
-                    if(v.Mode==0 && (int)v.Kind<Cookbook.RawCount)
+                    if(testHover && v.Mode==0 && (int)v.Kind<Cookbook.RawCount)
                     {
                         Bounds hitBounds=foods[(int)v.Kind].bounds;
                         hitBounds.extents=hitBounds.extents*1.25f;
                         Vector3 screen=viewCamera.WorldToScreenPoint(matrix.MultiplyPoint3x4(Vector3.zero));
                         float radius=FoodHitRadius(v);
-                        Vector2 delta=new Vector2(screen.x-Input.mousePosition.x,screen.y-Input.mousePosition.y);
+                        Vector2 delta=new Vector2(screen.x-pointer.x,screen.y-pointer.y);
                         if(screen.z>0 && delta.sqrMagnitude<radius*radius)
                         {
                             Matrix4x4 inverse=matrix.inverse;
@@ -266,7 +311,22 @@ namespace SpinningFeast
                         if(v.Mode==0 && previewRemaining[(int)v.Kind]>0)
                         {previewRemaining[(int)v.Kind]--;HighlightedFoodCount++;variant=previewPlayer+3;if(Effects!=null)Effects.Anticipation(v,previewPlayer);}
                         if(v.Golden!=0)variant=5;
-                        batches[(int)v.Kind*Variants+variant].Add(matrix);
+                        bool billboard=false;
+                        if(ImpostorsReady && v.Mode==0 && v.Golden==0 && (int)v.Kind<Cookbook.RawCount && (int)v.Kind!=previousHover
+                            && Mathf.Abs(v.Position.y-v.Floor)<.08f && Mathf.Abs(v.Velocity)<.1f && v.Impact<.1f && v.Scatter<.05f)
+                        {
+                            bool was=impostorLod.TryGetValue(v.Seed,out var oldLod) && oldLod;
+                            float diameter=2*foodRadii[(int)v.Kind]*v.Scale*Screen.height/(2*viewCamera.orthographicSize);
+                            bool use=diameter<(was?64:48);impostorLod[v.Seed]=use;
+                            if(use)billboard=impostors.TryAdd((int)v.Kind,matrix,variant);
+                        }
+                        if(!billboard)
+                        {
+                            float pixelDiameter=smallGeometry?2*foodRadii[(int)v.Kind]*v.Scale*Screen.height/(2*viewCamera.orthographicSize):0;
+                            bool useSmall=smallGeometry && (int)v.Kind<Cookbook.RawCount && v.Golden==0 && (int)v.Kind!=previousHover && pixelDiameter<64;
+                            if(useSmall){smallBatches[(int)v.Kind*Variants+variant].Add(matrix);SmallGeometryCount++;}
+                            else batches[(int)v.Kind*Variants+variant].Add(matrix);
+                        }
                     }
                 }
             }
@@ -327,23 +387,38 @@ namespace SpinningFeast
                 }
             }
             dishTags.Sort((a,b)=>a.Slot.CompareTo(b.Slot));
+            SubmittedShadowInstances=shadows.Count;
+            // Geometric coverage proxy only: includes off-screen/occluded quads, not measured overdraw.
+            float shadowPixelScale=Screen.height/(2*viewCamera.orthographicSize);
+            float projectedPlane=Mathf.Abs(Vector3.Dot(viewCamera.transform.forward,Vector3.up));
+            foreach(var shadow in shadows)ShadowQuadScreenCoverage+=4*Mathf.Abs(shadow.m00*shadow.m22)*projectedPlane*shadowPixelScale*shadowPixelScale/(Screen.width*(float)Screen.height);
             var shadowParams=new RenderParams(contactShadow){camera=viewCamera,worldBounds=new Bounds(Vector3.zero,Vector3.one*90),shadowCastingMode=ShadowCastingMode.Off,receiveShadows=false};
-            for(int offset=0;SystemInfo.graphicsDeviceType!=GraphicsDeviceType.Null && offset<shadows.Count;offset+=chunk.Length)
+            for(int offset=0;SystemInfo.graphicsDeviceType!=GraphicsDeviceType.Null && offset<shadows.Count;offset+=BatchSize)
             {
-                int count=Mathf.Min(chunk.Length,shadows.Count-offset);shadows.CopyTo(offset,chunk,0,count);
+                int count=Mathf.Min(BatchSize,shadows.Count-offset);shadows.CopyTo(offset,chunk,0,count);
                 Graphics.RenderMeshInstanced(shadowParams,shadowQuad,0,chunk,count);
+                SubmittedDrawCalls++;SubmittedMatrixBytes+=64L*count;
             }
             for(int i=0;SystemInfo.graphicsDeviceType!=GraphicsDeviceType.Null && i<batches.Length;i++)
             {
                 var list=batches[i];var rp=new RenderParams(i/Variants>=Cookbook.RawCount?cookedMaterials[i%Variants]:foodMaterials[i%Variants]) {camera=viewCamera,worldBounds=new Bounds(Vector3.zero,Vector3.one*90),shadowCastingMode=ShadowCastingMode.Off,receiveShadows=false};
-                for(int offset=0;offset<list.Count;offset+=chunk.Length)
-                {int count=Mathf.Min(chunk.Length,list.Count-offset);list.CopyTo(offset,chunk,0,count);Graphics.RenderMeshInstanced(rp,foods[i/Variants],0,chunk,count);}
+                for(int offset=0;offset<list.Count;offset+=BatchSize)
+                {int count=Mathf.Min(BatchSize,list.Count-offset);list.CopyTo(offset,chunk,0,count);Graphics.RenderMeshInstanced(rp,foods[i/Variants],0,chunk,count);SubmittedFoodTriangles+=(long)foodTriangles[i/Variants]*count;SubmittedFoodVertices+=(long)foodVertices[i/Variants]*count;SubmittedVertexInputBytes+=foodVertexBytes[i/Variants]*count;SubmittedDrawCalls++;SubmittedMatrixBytes+=64L*count;}
             }
+            if(smallGeometry)for(int i=0;SystemInfo.graphicsDeviceType!=GraphicsDeviceType.Null && i<smallBatches.Length;i++)
+            {
+                var list=smallBatches[i];var rp=new RenderParams(foodMaterials[i%Variants]){camera=viewCamera,worldBounds=new Bounds(Vector3.zero,Vector3.one*90),shadowCastingMode=ShadowCastingMode.Off,receiveShadows=false};
+                for(int offset=0;offset<list.Count;offset+=BatchSize)
+                {int count=Mathf.Min(BatchSize,list.Count-offset);list.CopyTo(offset,chunk,0,count);Graphics.RenderMeshInstanced(rp,smallFoods[i/Variants],0,chunk,count);SubmittedFoodTriangles+=(long)smallTriangles[i/Variants]*count;SubmittedFoodVertices+=(long)smallVertices[i/Variants]*count;SubmittedVertexInputBytes+=smallVertexBytes[i/Variants]*count;SubmittedDrawCalls++;SubmittedMatrixBytes+=64L*count;}
+            }
+            if(impostors!=null)
+            {impostors.Draw();SubmittedDrawCalls+=impostors.DrawCalls;SubmittedFoodTriangles+=2L*impostors.AddedCount;SubmittedFoodVertices+=4L*impostors.AddedCount;SubmittedVertexInputBytes+=80L*impostors.AddedCount;SubmittedMatrixBytes+=64L*impostors.AddedCount+256L*16*impostors.DrawCalls;}
             LastCpuMilliseconds=(System.Diagnostics.Stopwatch.GetTimestamp()-started)*1000f/System.Diagnostics.Stopwatch.Frequency;
         }
         void OnDestroy()
         {
             if(queryWorld!=null && queryWorld.IsCreated) {visualQuery.Dispose();plateQuery.Dispose();}
+            if(impostors!=null)impostors.Dispose();
             foreach(var r in resources) if(r) Destroy(r);
         }
     }

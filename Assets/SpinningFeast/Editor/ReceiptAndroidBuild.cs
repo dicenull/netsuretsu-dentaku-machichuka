@@ -36,6 +36,7 @@ namespace SpinningFeast.Editor
             try
             {
                 ReceiptUITests.ValidateReceiptUI();
+                MobileGeometryTests.Validate();
                 ProjectTools.RunSimulationTests();
                 ProjectTools.RunVisualDataTests();
                 ProjectTools.RunAudioChecks();

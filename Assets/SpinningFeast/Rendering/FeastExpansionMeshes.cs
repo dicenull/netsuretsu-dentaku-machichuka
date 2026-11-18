@@ -8,9 +8,10 @@ namespace SpinningFeast
     {
         static readonly Color Cream=new Color(1,.94f,.75f), Green=new Color(.25f,.62f,.13f), Brown=new Color(.50f,.22f,.08f);
         public static bool IsMeal(FoodKind kind) => kind>=FoodKind.EggFriedRice && kind<FoodKind.Count;
-        public static Mesh Ingredient(FoodKind kind,bool detailed)
+        public static Mesh Ingredient(FoodKind kind,bool detailed,bool lightweight=false)
         {
-            var b=new FeastMeshes.Builder(detailed);
+            lightweight=lightweight && (int)kind>=0 && (int)kind<Cookbook.RawCount;
+            var b=new FeastMeshes.Builder(detailed,lightweight);
             switch(kind)
             {
                 case FoodKind.Beef:

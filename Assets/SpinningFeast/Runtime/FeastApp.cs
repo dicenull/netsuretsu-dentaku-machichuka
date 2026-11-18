@@ -43,6 +43,10 @@ namespace SpinningFeast
         FeastEffects effects;
         FeastHudEffects hud;
         bool endingPlayed;
+        string previewLookupInput,previewLookupComposition;
+        int previewLookupPlayer=-1,previewLookupEpoch=-1,previewLookupRecipe=-1;
+        MatchPhase previewLookupPhase=(MatchPhase)(-1);
+        bool previewLookupBook;
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void StartGame()
         {
@@ -52,7 +56,7 @@ namespace SpinningFeast
         void Start()
         {
             Application.logMessageReceived+=CountErrors;
-            Application.targetFrameRate=60; Application.runInBackground=true;
+            Application.targetFrameRate=Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-perf-uncapped")>=0?240:60; Application.runInBackground=true;
 #if !UNITY_WEBGL || UNITY_EDITOR
             Input.imeCompositionMode=IMECompositionMode.On;
 #endif
@@ -95,7 +99,15 @@ namespace SpinningFeast
             for(int p=0;p<2;p++) flashes[p]=Mathf.Max(0,flashes[p]-Time.deltaTime*1.9f);
             wordBursts.RemoveAll(b=>Time.unscaledTime-b.Born>=1.05f);
             var state=sim.State;sound.SetRemaining(state.Remaining);
-            view.SetPreview(!codex && state.Phase==MatchPhase.Playing?Cookbook.Find(inputs[activePlayer]+composition):-1,activePlayer);
+            string previewText=inputs[activePlayer];
+            if(previewLookupInput!=previewText || previewLookupComposition!=composition || previewLookupPlayer!=activePlayer || previewLookupPhase!=state.Phase || previewLookupBook!=codex || previewLookupEpoch!=state.Epoch)
+            {
+                previewLookupInput=previewText;previewLookupComposition=composition;
+                previewLookupPlayer=activePlayer;previewLookupPhase=state.Phase;
+                previewLookupBook=codex;previewLookupEpoch=state.Epoch;
+                previewLookupRecipe=!codex && state.Phase==MatchPhase.Playing?Cookbook.Find(previewText+composition):-1;
+            }
+            view.SetPreview(previewLookupRecipe,activePlayer);
             if(state.Phase==MatchPhase.Result && !endingPlayed)
             {
                 endingPlayed=true;receiptDataDirty=true;resultDishes=sim.MatchDishes();resultPage=0;codex=false;
@@ -358,10 +370,13 @@ namespace SpinningFeast
             Send(1,Cookbook.Find("cheesecurrydoria"));yield return new WaitForSeconds(1.1f);
             Send(0,Cookbook.Find("chickenrice"));yield return new WaitForSeconds(.28f);
             string path=CapturePath();
-            ScreenCapture.CaptureScreenshot(Path.Combine(path,"prototype.png"));
+            ScreenCapture.CaptureScreenshot(Application.platform==RuntimePlatform.Android?"prototype.png":Path.Combine(path,"prototype.png"));
             yield return new WaitForSeconds(1.5f);
+            if(Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-perf-long")>=0)
+                while(sim.State.Phase==MatchPhase.Playing)yield return null;
             bool passed=runtimeErrors==0 && sim.SuccessfulCommands>=8 && sim.State.CyanScore>0 && sim.State.OrangeScore>0;
             File.WriteAllText(Path.Combine(path,"player-smoke.txt"),$"Result: {(passed?"PASS":"FAIL")}\nRuntime errors: {runtimeErrors}\nSuccessful commands: {sim.SuccessfulCommands}\nCyan: {sim.State.CyanScore}\nOrange: {sim.State.OrangeScore}\nRendered food models: {view.VisibleFoodCount}\nTotal ECS food visuals: {view.TotalFoodCount}\nGraphics: {SystemInfo.graphicsDeviceName}\nResolution: {Screen.width}x{Screen.height}\n");
+            GetComponent<FeastFrameProfile>().SaveSnapshot(Path.Combine(path,"frame-profile.json"));
             Application.Quit(passed?0:1);
         }
         static string CapturePath()

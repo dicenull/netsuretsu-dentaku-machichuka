@@ -17,6 +17,9 @@ namespace SpinningFeast
         readonly Button[] receiptCpu=new Button[3],receiptRecipes=new Button[BookPageSize];
         readonly Label[] receiptScores=new Label[2],receiptResultScores=new Label[2],receiptHeaders=new Label[2];
         readonly Label[,] receiptDishNames=new Label[2,ResultPageSize],receiptDishCounts=new Label[2,ResultPageSize],receiptHudDishes=new Label[2,3];
+        readonly int[] receiptShownScore=new int[2];
+        bool receiptTextInitialized;
+        int receiptShownSeconds;
         Label receiptTimer,receiptBookCount,receiptBookPage,receiptResultPage,receiptResultHeading,receiptResultTotal,receiptStamp;
         Button receiptMusic,receiptSubmit,receiptBookPrevious,receiptBookNext,receiptResultPrevious,receiptResultNext;
         ReceiptUILayout.Layout receiptLayout;
@@ -171,8 +174,16 @@ namespace SpinningFeast
             if(receiptMusic.text!=musicText)receiptMusic.text=musicText;
             var music=matchUI.Q<Button>("music");if(music!=null && music.text!=musicText)music.text=musicText;
             SetLabel(titleUI.Q<Label>("cpu-description"),FeastCpu.Description(cpuLevel));
-            for(int p=0;p<2;p++)SetLabel(receiptScores[p],Mathf.RoundToInt(shownScores[p]).ToString("N0"));
-            int seconds=Mathf.Max(0,Mathf.CeilToInt(state.Remaining));SetLabel(receiptTimer,$"{seconds/60:00}:{seconds%60:00}");
+            for(int p=0;p<2;p++)
+            {
+                int score=Mathf.RoundToInt(shownScores[p]);
+                if(!receiptTextInitialized || changed || receiptShownScore[p]!=score)
+                {receiptShownScore[p]=score;SetLabel(receiptScores[p],score.ToString("N0"));}
+            }
+            int seconds=Mathf.Max(0,Mathf.CeilToInt(state.Remaining));
+            if(!receiptTextInitialized || changed || receiptShownSeconds!=seconds)
+            {receiptShownSeconds=seconds;SetLabel(receiptTimer,$"{seconds/60:00}:{seconds%60:00}");}
+            receiptTextInitialized=true;
             receiptTimer.EnableInClassList("urgent",seconds<=15 && playing);
             if(receiptDataDirty && playing){receiptLiveDishes=sim.MatchDishes();RefreshReceiptHudDishes();}
             if(codex && (receiptDataDirty || receiptBookIndex!=bookPage))RefreshReceiptBook();

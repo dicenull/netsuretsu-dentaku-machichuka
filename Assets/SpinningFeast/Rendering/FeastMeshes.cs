@@ -7,11 +7,13 @@ namespace SpinningFeast
     {
         static readonly Color Cream = new Color(1,.91f,.69f);
         static readonly Color Green = new Color(.23f,.62f,.21f);
-        public static Mesh Food(FoodKind kind, bool detailed = true)
+        public static Mesh Food(FoodKind kind, bool detailed = true, bool lightweight = false)
         {
-            if(kind>=FoodKind.Beef && (int)kind<Cookbook.RawCount)return FeastExpansionMeshes.Ingredient(kind,detailed);
+            // Lightweight geometry is opt-in for raw ingredients only. Meals keep their existing meshes.
+            lightweight=lightweight && (int)kind>=0 && (int)kind<Cookbook.RawCount;
+            if(kind>=FoodKind.Beef && (int)kind<Cookbook.RawCount)return FeastExpansionMeshes.Ingredient(kind,detailed,lightweight);
             if(FeastMeals.IsComposed(kind))return FeastMeals.Build(kind,detailed);
-            var b = new Builder(detailed);
+            var b = new Builder(detailed,lightweight);
             switch (kind)
             {
                 case FoodKind.Rice:
@@ -124,18 +126,33 @@ namespace SpinningFeast
         }
         public sealed class Builder
         {
-            readonly bool detailed;
-            public Builder(bool detailed=false) {this.detailed=detailed;}
+            readonly bool detailed,lightweight;
+            public Builder(bool detailed=false,bool lightweight=false)
+            {this.lightweight=lightweight;this.detailed=detailed && !lightweight;}
             readonly List<Vector3> verts=new List<Vector3>(); readonly List<int> indices=new List<int>(); readonly List<Color> colors=new List<Color>();
             public void Tri(Vector3 a,Vector3 b,Vector3 c,Color color)
             { int n=verts.Count; verts.Add(a);verts.Add(b);verts.Add(c); indices.Add(n);indices.Add(n+1);indices.Add(n+2); colors.Add(color);colors.Add(color);colors.Add(color); }
             public void Quad(Vector3 a,Vector3 b,Vector3 c,Vector3 d,Color color) {Tri(a,b,c,color);Tri(a,c,d,color);}
             public void Ball(Vector3 p,Vector3 size,Color color,int sides=8,int rows=5)
             {
-                if(detailed) sides *= 2;
+                if(lightweight)
+                {
+                    // Keep larger ingredient silhouettes round; coarse octahedra suit small details only.
+                    bool small=Mathf.Max(size.x,Mathf.Max(size.y,size.z))<=.22f;
+                    sides=Mathf.Min(sides,small?4:6);rows=small?2:4;
+                }
+                else if(detailed) sides *= 2;
                 for(int y=0;y<rows;y++) for(int x=0;x<sides;x++)
                 { float a=x*Mathf.PI*2/sides,c=(x+1)*Mathf.PI*2/sides,t=y*Mathf.PI/rows,u=(y+1)*Mathf.PI/rows;
-                  Quad(p+Vector3.Scale(Sphere(a,t),size),p+Vector3.Scale(Sphere(a,u),size),p+Vector3.Scale(Sphere(c,u),size),p+Vector3.Scale(Sphere(c,t),size),color); }
+                  if(lightweight)
+                  {
+                      Vector3 pa=p+Vector3.Scale(Sphere(a,t),size),pb=p+Vector3.Scale(Sphere(a,u),size);
+                      Vector3 pc=p+Vector3.Scale(Sphere(c,u),size),pd=p+Vector3.Scale(Sphere(c,t),size);
+                      if(y==0)Tri(pa,pb,pc,color);
+                      else if(y==rows-1)Tri(pa,pc,pd,color);
+                      else Quad(pa,pb,pc,pd,color);
+                  }
+                  else Quad(p+Vector3.Scale(Sphere(a,t),size),p+Vector3.Scale(Sphere(a,u),size),p+Vector3.Scale(Sphere(c,u),size),p+Vector3.Scale(Sphere(c,t),size),color); }
             }
             static Vector3 Sphere(float a,float t) => new Vector3(Mathf.Sin(t)*Mathf.Sin(a),Mathf.Cos(t),Mathf.Sin(t)*Mathf.Cos(a));
             public void Box(Vector3 p,Vector3 scale,Color color)
@@ -153,7 +170,7 @@ namespace SpinningFeast
             {
                 Vector3 half=size*.5f,inner=half-Vector3.one*bevel;
                 Vector3[] normals={Vector3.right,Vector3.left,Vector3.up,Vector3.down,Vector3.forward,Vector3.back};
-                int columns=detailed?8:4,rows=4;
+                int columns=lightweight?2:detailed?8:4,rows=lightweight?2:4;
                 foreach(Vector3 n in normals)
                 {
                     Vector3 u=Vector3.Cross(Mathf.Abs(n.y)>.9f?Vector3.forward:Vector3.up,n).normalized,v=Vector3.Cross(n,u);
@@ -178,7 +195,8 @@ namespace SpinningFeast
             {DetailTri(a,b,c,color);DetailTri(a,c,d,color);}
             public void Profile(Vector3 origin,float[] radii,float[] heights,Color color,int sides=12)
             {
-                if(detailed)sides*=2;
+                if(lightweight)sides=Mathf.Min(sides,6);
+                else if(detailed)sides*=2;
                 for(int j=0;j<radii.Length-1;j++)for(int i=0;i<sides;i++)
                 {
                     float a=i*Mathf.PI*2/sides,c=(i+1)*Mathf.PI*2/sides;
@@ -191,7 +209,8 @@ namespace SpinningFeast
             }
             public void Rod(Vector3 start,Vector3 end,float r1,float r2,Color color,int sides=6)
             {
-                if(detailed)sides*=2;
+                if(lightweight)sides=Mathf.Min(sides,4);
+                else if(detailed)sides*=2;
                 Vector3 axis=(end-start).normalized;
                 Vector3 u=Vector3.Cross(axis,Mathf.Abs(axis.y)>.9f?Vector3.forward:Vector3.up).normalized,v=Vector3.Cross(axis,u);
                 for(int i=0;i<sides;i++)
@@ -224,7 +243,19 @@ namespace SpinningFeast
                 DetailTri(a,c,b,color);DetailTri(a+up,b+up,c+up,color);
                 DetailQuad(a,b,b+up,a+up,color);DetailQuad(b,c,c+up,b+up,color);DetailQuad(c,a,a+up,c+up,color);
             }
-            public Mesh Finish(string name) {var m=new Mesh {name=name,indexFormat=verts.Count>65535?UnityEngine.Rendering.IndexFormat.UInt32:UnityEngine.Rendering.IndexFormat.UInt16};m.SetVertices(verts);m.SetTriangles(indices,0);m.SetColors(colors);m.RecalculateNormals();m.RecalculateBounds();return m;}
+            public Mesh Finish(string name)
+            {
+                var m=new Mesh {name=name,indexFormat=verts.Count>65535?UnityEngine.Rendering.IndexFormat.UInt32:UnityEngine.Rendering.IndexFormat.UInt16};
+                m.SetVertices(verts);m.SetTriangles(indices,0);
+                if(lightweight)
+                {
+                    var packedColors=new Color32[colors.Count];
+                    for(int i=0;i<colors.Count;i++)packedColors[i]=colors[i];
+                    m.SetColors(packedColors);
+                }
+                else m.SetColors(colors);
+                m.RecalculateNormals();m.RecalculateBounds();return m;
+            }
         }
     }
 }
