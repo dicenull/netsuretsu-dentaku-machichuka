@@ -42,6 +42,26 @@ namespace SpinningFeast.Editor
             if(report.summary.result!=BuildResult.Succeeded) throw new Exception("Player build failed: "+report.summary.result);
             Debug.Log("FEAST_BUILD_PASS bytes="+report.summary.totalSize);
         }
+        [MenuItem("熱烈電卓町中華/Windows向けに検証・ビルド")]
+        public static void ValidateAndBuildWindows()
+        {
+            CreateScene();RunSimulationTests();RunVisualDataTests();RunAudioChecks();
+            PlayerSettings.companyName="SpinningFeast";PlayerSettings.productName="熱烈電卓町中華";
+            PlayerSettings.bundleVersion="0.16.0";PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=800;
+            PlayerSettings.fullScreenMode=FullScreenMode.Windowed;PlayerSettings.resizableWindow=true;PlayerSettings.runInBackground=true;
+            PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone,ScriptingImplementation.Mono2x);
+            PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone,"local.spinningfeast.prototype");
+            QualitySettings.vSyncCount=1;
+            AssetDatabase.SaveAssets();
+            var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions {
+                scenes=new[]{"Assets/Scenes/Banquet.unity"},
+                locationPathName="Builds/Windows/SpinningFeast.exe",
+                target=BuildTarget.StandaloneWindows64,
+                options=BuildOptions.None
+            });
+            if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Windows player build failed: "+report.summary.result);
+            Debug.Log("FEAST_WINDOWS_BUILD_PASS bytes="+report.summary.totalSize);
+        }
         [MenuItem("熱烈電卓町中華/unityroom向けWebGLをビルド")]
         public static void BuildUnityroomWeb()
         {

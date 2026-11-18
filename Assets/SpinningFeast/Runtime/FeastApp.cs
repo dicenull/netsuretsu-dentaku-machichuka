@@ -46,7 +46,7 @@ namespace SpinningFeast
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void StartGame()
         {
-            if(FindFirstObjectByType<FeastApp>()!=null) return;
+            if(FindAnyObjectByType<FeastApp>()!=null) return;
             new GameObject("熱烈電卓町中華 — runtime").AddComponent<FeastApp>();
         }
         void Start()
