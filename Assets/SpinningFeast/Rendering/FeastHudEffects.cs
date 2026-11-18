@@ -6,6 +6,8 @@ namespace SpinningFeast
     // Temporary ornaments use the existing 1280 x 800 HUD coordinate space.
     public sealed class FeastHudEffects
     {
+        // Optional UI Toolkit anchor expressed in the existing presentation coordinate space.
+        public System.Func<int,Vector2> ScoreTarget;
         struct Fleck {public Vector2 Start,Velocity;public float Born,Life,Size,Angle,Spin;public Color Color;public int Kind;}
         struct ScoreFlight {public CookCue Cue;public float Born;}
         struct EatFlight {public EatingCue Cue;public float Born;public int WordIndex;}
@@ -250,7 +252,7 @@ namespace SpinningFeast
                     int grade=FeastEffects.GradeForPortions(f.Cue.Count);
                     Vector3 world=FeastSystem.PlatePosition(f.Cue.Slot,state.Angle);world.y+=.8f;
                     Vector2 origin=Project(world,scale);origin.x=Mathf.Clamp(origin.x,160,1120);origin.y=Mathf.Clamp(origin.y,180,590);
-                    Vector2 target=new Vector2(f.Cue.Player==0?190:1090,92);
+                    Vector2 target=ScoreTarget!=null?ScoreTarget(f.Cue.Player):new Vector2(f.Cue.Player==0?190:1090,92);
                     float smooth=t*t*(3-2*t);Vector2 point=Vector2.Lerp(origin,target,smooth);point.y-=Mathf.Sin(t*Mathf.PI)*65;
                     Color color=Actor(f.Cue.Player);color.a=Mathf.Clamp01(age/.15f)*(1-Mathf.SmoothStep(.78f,1,t));
                     int points=f.Cue.Count*Cookbook.All[f.Cue.Recipe].Points+f.Cue.BonusPoints;
@@ -290,7 +292,7 @@ namespace SpinningFeast
                     float t=Mathf.Clamp01((age-.45f)/1.05f),smooth=t*t*(3-2*t);
                     Vector3 world=FeastSystem.PlatePosition(f.Cue.Slot,state.Angle);world.y+=1.5f;
                     Vector2 origin=Project(world,scale);origin.x=Mathf.Clamp(origin.x,170,1110);origin.y=Mathf.Clamp(origin.y,190,570);
-                    Vector2 target=new Vector2(f.Cue.Player==0?190:1090,92);
+                    Vector2 target=ScoreTarget!=null?ScoreTarget(f.Cue.Player):new Vector2(f.Cue.Player==0?190:1090,92);
                     Vector2 point=Vector2.Lerp(origin,target,smooth);point.y-=Mathf.Sin(t*Mathf.PI)*80;
                     Color accent=Actor(f.Cue.Player);accent.a=FadeOut(age,1.65f,2.4f)*.95f;
                     Color gold=FeastView.Golden;gold.a=accent.a;

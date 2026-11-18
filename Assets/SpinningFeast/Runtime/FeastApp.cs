@@ -73,10 +73,11 @@ namespace SpinningFeast
             webInputOwner=this;
             FeastWebInput_Create(WebInputHandler);
 #endif
+            InitializeReceiptUI();
             if(smoke) StartCoroutine(effectsProbe?EffectsProbe():gifCapture?CaptureCookGif():SmokeRun());
         }
         void CountErrors(string condition,string stack,LogType type) {if(type==LogType.Error || type==LogType.Exception || type==LogType.Assert) runtimeErrors++;}
-        void OnCooked(int player,int recipe,int servings) {flashes[player]=1;failed[player]=false;sound.Cook(player,recipe,servings);}
+        void OnCooked(int player,int recipe,int servings) {receiptDataDirty=true;flashes[player]=1;failed[player]=false;sound.Cook(player,recipe,servings);}
         void OnFailed(int player) {flashes[player]=.7f;failed[player]=true;sound.Missing(player);}
         void OnServed(int player,int recipe,int servings) {sound.Serve(player,recipe,servings);}
         void Update()
@@ -110,6 +111,7 @@ namespace SpinningFeast
                 botAt=state.Elapsed+FeastCpu.Interval(cpuLevel);
             }
         }
+        void LateUpdate() { if(sim!=null) SyncReceiptUI(); }
         void SelectCpu(int level)
         {
             cpuLevel=FeastCpu.ClampLevel(level);
@@ -153,6 +155,7 @@ namespace SpinningFeast
         void SetDishInput(string text)
         {
             inputs[activePlayer]=text;
+            receiptInput?.SetValueWithoutNotify(text);
 #if UNITY_WEBGL && !UNITY_EDITOR
             FeastWebInput_SetValue(text);
 #endif
@@ -186,7 +189,7 @@ namespace SpinningFeast
                 if(!string.IsNullOrWhiteSpace(text))Send(activePlayer,Cookbook.Find(text),text);
                 SetDishInput("");
             }
-            else if(key!=KeyCode.Tab)return false;
+            else return false; // Leave Tab to UI Toolkit focus navigation.
             return true;
         }
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -197,7 +200,6 @@ namespace SpinningFeast
         bool webInputVisible;
 
         [DllImport("__Internal")] static extern void FeastWebInput_Create(WebInputCallback callback);
-        [DllImport("__Internal")] static extern void FeastWebInput_Place(float x, float y, float width, float height);
         [DllImport("__Internal")] static extern void FeastWebInput_SetValue(string text);
         [DllImport("__Internal")] static extern void FeastWebInput_Hide();
         [DllImport("__Internal")] static extern void FeastWebInput_Destroy();
@@ -207,7 +209,7 @@ namespace SpinningFeast
         {
             var app=webInputOwner;
             if(app==null || app.codex || app.sim.State.Phase!=MatchPhase.Playing)return;
-            if(text!=IntPtr.Zero)app.inputs[activePlayer]=Marshal.PtrToStringUTF8(text);
+            if(text!=IntPtr.Zero){app.inputs[activePlayer]=Marshal.PtrToStringUTF8(text);app.receiptInput?.SetValueWithoutNotify(app.inputs[activePlayer]);}
             switch((WebInputAction)action)
             {
                 case WebInputAction.Submit: app.HandleMatchKey(KeyCode.Return); break;
@@ -216,16 +218,6 @@ namespace SpinningFeast
                 case WebInputAction.Music: app.sound.ToggleMusic(); break;
                 case WebInputAction.Restart: app.HandleMatchKey(KeyCode.F5); break;
             }
-        }
-        void PlaceWebInput(Rect rect)
-        {
-            if(!webInputVisible)
-            {
-                webInputVisible=true;
-            }
-            Vector3 origin=GUI.matrix.MultiplyPoint3x4(new Vector3(rect.x,rect.y,0));
-            Vector3 size=GUI.matrix.MultiplyVector(new Vector3(rect.width,rect.height,0));
-            FeastWebInput_Place(origin.x/Screen.width,origin.y/Screen.height,size.x/Screen.width,size.y/Screen.height);
         }
         void HideWebInput()
         {
@@ -250,64 +242,19 @@ namespace SpinningFeast
             menuButtonStyle=new GUIStyle(timeStyle) {fontSize=23,fontStyle=FontStyle.Bold};
         }
         static void Fill(Rect rect,Color color) {Color before=GUI.color;GUI.color=color;GUI.DrawTexture(rect,Texture2D.whiteTexture);GUI.color=before;}
+        // Only world-anchored labels and transient presentation remain IMGUI.
+        // All menus, scores, input, book and result controls use the shared UIDocument.
         void OnGUI()
         {
             if(sim==null) return;
             Styles();float scale=Mathf.Min(Screen.width/1280f,Screen.height/800f);
+            Matrix4x4 old=GUI.matrix;
             GUI.matrix=Matrix4x4.TRS(new Vector3((Screen.width-1280*scale)*.5f,(Screen.height-800*scale)*.5f,0),Quaternion.identity,Vector3.one*scale);
-            var state=sim.State;Event e=Event.current;
-            if(e.type==EventType.KeyDown && e.keyCode==KeyCode.F3){sound.ToggleMusic();e.Use();}
-            if(state.Phase==MatchPhase.Title || state.Phase==MatchPhase.Result)
-            {
-                DrawMenu(state,e);hud?.DrawTransition();GUI.matrix=Matrix4x4.identity;return;
-            }
-            if(state.Phase==MatchPhase.Playing && e.type==EventType.KeyDown)
-            {
-                KeyCode key=e.keyCode;
-                if(HandleMatchKey(key))
-                {
-                    e.Use();
-                    if(key==KeyCode.F5){GUI.matrix=Matrix4x4.identity;return;}
-                }
-            }
+            var state=sim.State;
             if(!codex && state.Phase==MatchPhase.Playing)
-            {
-                DrawDishTags(scale,state.Epoch);
-                DrawIngredientHint(scale);
-                DrawWordEffects(state.Remaining>0);
-            }
-            DrawMatchHud(state);
-            Color light=Ink;
-            if(codex)
-            {
-                Rect panel=new Rect(230,145,820,530);
-                Card(panel,Paper,Vermilion,22,5);
-                int pages=(Cookbook.All.Length+BookPageSize-1)/BookPageSize,found=0;
-                foreach(bool discovered in sim.Discovered)if(discovered)found++;
-                MenuLabel(new Rect(260,155,760,35),$"料理図鑑　{found} / {Cookbook.All.Length}",22,light);
-                if(e.type==EventType.ScrollWheel && panel.Contains(e.mousePosition))
-                {bookPage=Mathf.Clamp(bookPage+(e.delta.y>0?1:-1),0,pages-1);sound.Page();e.Use();}
-                bookStyle.fontSize=19;
-                for(int slot=0;slot<BookPageSize;slot++)
-                {
-                    int i=bookPage*BookPageSize+slot;if(i>=Cookbook.All.Length)break;
-                    bookStyle.normal.textColor=sim.Discovered[i]?light:new Color(.65f,.46f,.31f);
-                    Rect row=new Rect(255+(slot/10)*390,199+(slot%10)*41,375,38);
-                    if(sim.Discovered[i])
-                    {
-                        Round(row,new Color(.97f,.86f,.65f),8);
-                        if(GUI.Button(row,Cookbook.All[i].Name,bookStyle)){SetDishInput(Cookbook.All[i].Name);codex=false;sound.Select();}
-                    }
-                    else GUI.Label(row,"◇",bookStyle);
-                }
-                bookStyle.normal.textColor=Ink;
-                if(GUI.Button(new Rect(310,625,100,35),"◀",bookStyle)){bookPage=(bookPage+pages-1)%pages;sound.Page();}
-                MenuLabel(new Rect(480,625,320,35),$"{bookPage+1} / {pages}",18,light);
-                if(GUI.Button(new Rect(870,625,100,35),"▶",bookStyle)){bookPage=(bookPage+1)%pages;sound.Page();}
-
-            }
-            hud?.DrawPlaying(scale,codex);hud?.DrawTransition();
-            GUI.matrix=Matrix4x4.identity;
+            {DrawDishTags(scale,state.Epoch);DrawIngredientHint(scale);DrawWordEffects(state.Remaining>0);}
+            if(state.Phase==MatchPhase.Playing || state.Phase==MatchPhase.Countdown)hud?.DrawPlaying(scale,codex);
+            hud?.DrawTransition();GUI.matrix=old;
         }
         void DrawWordEffects(bool playing)
         {
@@ -433,7 +380,7 @@ namespace SpinningFeast
 #endif
             Application.logMessageReceived-=CountErrors;hud?.Dispose();
             if(sim!=null){sim.Cooked-=OnCooked;sim.Failed-=OnFailed;sim.Served-=OnServed;}
-            if(uiDisc!=null)Destroy(uiDisc);
+            DisposeReceiptUI();
             if(!smoke) PlayerPrefs.Save();
         }
     }

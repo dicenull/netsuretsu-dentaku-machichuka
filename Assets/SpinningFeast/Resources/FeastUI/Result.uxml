@@ -1,0 +1,50 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+  <Style src="Shared.uss" />
+  <Style src="Responsive.uss" />
+  <ui:VisualElement name="result-screen" class="screen result-screen" picking-mode="Ignore">
+    <ui:VisualElement class="receipt result-node-1" picking-mode="Ignore" name="result-receipt" />
+    <ui:Label class="center bold result-node-2" name="receipt-heading" text="御 会 計" picking-mode="Ignore" />
+    <ui:Label class="center result-node-3" name="result-heading" text="" picking-mode="Ignore" />
+    <ui:ScrollView name="result-scroll" mode="Vertical" class="result-node-4">
+      <ui:VisualElement name="result-content" picking-mode="Ignore" class="result-node-5">
+        <ui:Label class="result-node-6" name="result-player-0" text="あなた" picking-mode="Ignore" />
+        <ui:Label class="bold accent result-node-7" name="result-score-0" text="" picking-mode="Ignore" />
+        <ui:Label class="secondary result-node-8" name="result-header-0" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-9" name="result-name-0-0" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-10" name="result-count-0-0" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-11" name="result-name-0-1" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-12" name="result-count-0-1" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-13" name="result-name-0-2" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-14" name="result-count-0-2" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-15" name="result-name-0-3" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-16" name="result-count-0-3" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-17" name="result-name-0-4" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-18" name="result-count-0-4" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-19" name="result-name-0-5" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-20" name="result-count-0-5" text="" picking-mode="Ignore" />
+        <ui:Label class="result-node-21" name="result-player-1" text="CPU" picking-mode="Ignore" />
+        <ui:Label class="bold accent result-node-22" name="result-score-1" text="" picking-mode="Ignore" />
+        <ui:Label class="secondary result-node-23" name="result-header-1" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-24" name="result-name-1-0" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-25" name="result-count-1-0" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-26" name="result-name-1-1" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-27" name="result-count-1-1" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-28" name="result-name-1-2" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-29" name="result-count-1-2" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-30" name="result-name-1-3" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-31" name="result-count-1-3" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-32" name="result-name-1-4" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-33" name="result-count-1-4" text="" picking-mode="Ignore" />
+        <ui:Label class="dish-name result-node-34" name="result-name-1-5" text="" picking-mode="Ignore" />
+        <ui:Label class="right result-node-35" name="result-count-1-5" text="" picking-mode="Ignore" />
+      </ui:VisualElement>
+    </ui:ScrollView>
+    <ui:Label class="center bold result-node-36" name="result-total" text="" picking-mode="Ignore" />
+    <ui:Button class="result-node-37" name="result-prev" text="前" />
+    <ui:Label class="center result-node-38" name="result-page" text="" picking-mode="Ignore" />
+    <ui:Button class="result-node-39" name="result-next" text="次" />
+    <ui:Label class="stamp result-node-40" name="result-stamp" text="" picking-mode="Ignore" />
+    <ui:Button class="primary result-node-41" name="replay" text="もう一戦！" />
+    <ui:Button class="result-node-42" name="title" text="タイトルへ" />
+  </ui:VisualElement>
+</ui:UXML>

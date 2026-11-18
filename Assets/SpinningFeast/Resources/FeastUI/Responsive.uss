@@ -1,0 +1,115 @@
+/* One UXML tree, responsive placement. Parent stage supplies portrait class. */
+.portrait .screen { font-size:16px; }
+.portrait Button { min-height:48px; font-size:16px; padding:3px; }
+.portrait TextField { font-size:22px; }
+.portrait #title-deco-0 { height:12px; }
+.portrait #title-hero { left:22px;top:146px;width:316px;height:154px;font-size:42px; }
+.portrait #title-tagline { left:22px;top:316px;width:316px;height:60px;font-size:20px; }
+.portrait #title-deco-8 { left:16px;top:420px;width:328px;height:270px; }
+.portrait #title-deco-9 { left:30px;top:478px;width:300px;height:2px; }
+.portrait #order-heading { left:30px;top:434px;width:300px;height:40px;font-size:24px; }
+.portrait #cpu-heading { left:30px;top:490px;width:300px;height:28px;font-size:16px; }
+.portrait #start { left:30px;top:590px;width:300px;height:60px; }
+.portrait #start-hint { display:none; }
+.portrait #cpu-description { left:30px;top:655px;width:300px;height:30px;font-size:13px; }
+.portrait #title-screen #music { left:100px;top:auto;bottom:12px;width:160px;height:52px; }
+.portrait #hud-deco-0 { height:8px; }
+.portrait #hud-deco-1 { left:16px;top:34px;width:208px;height:124px; }
+.portrait #hud-deco-2 { display:none; }
+.portrait #hud-static-0 { left:28px;top:48px;width:70px;height:36px;font-size:16px; }
+.portrait #hud-static-2 { left:28px;top:106px;width:70px;height:30px;font-size:16px; }
+.portrait #score-0 { left:100px;top:48px;width:112px;height:36px;font-size:23px;-unity-text-align:middle-right; }
+.portrait #score-1 { left:100px;top:106px;width:112px;height:30px;font-size:19px;-unity-text-align:middle-right; }
+.portrait #timer { left:238px;top:34px;width:106px;height:124px;font-size:34px; }
+.portrait #hud-static-1, .portrait #hud-static-3, .portrait #hud-deco-3, .portrait #hud-deco-4 { display:none; }
+.portrait #input-dock { left:16px;top:auto;bottom:76px;width:auto;right:16px;height:60px;flex-direction:row; }
+.portrait #dish-input { position:relative;left:auto;top:auto;width:auto;height:60px;flex-grow:1;flex-shrink:1;min-width:0; }
+.portrait #submit { position:relative;left:auto;top:auto;width:70px;height:60px;margin-left:8px;flex-shrink:0; }
+.portrait #bottom-actions { left:16px;right:16px;top:auto;bottom:12px;width:auto;height:52px;flex-direction:row; }
+.portrait #book-open, .portrait #bottom-actions #music { position:relative;left:auto;top:auto;width:auto;height:52px;flex-grow:1; }
+.portrait #book-open { margin-right:8px; }
+.portrait.keyboard-open #bottom-actions { display:none; }
+.portrait.keyboard-open #input-dock { bottom:8px; }
+.portrait #result-receipt { left:24px;top:12px;width:auto;right:24px;height:auto;bottom:130px; }
+.portrait #receipt-heading { left:40px;top:28px;width:280px;height:40px;font-size:25px; }
+.portrait #result-heading { left:40px;top:78px;width:280px;height:44px;font-size:22px; }
+.portrait #result-stamp { display:none; }
+.portrait #result-scroll { left:42px;top:134px;width:auto;right:42px;height:auto;bottom:228px; }
+.portrait #result-content { min-height:640px; }
+.portrait #result-total { left:40px;top:auto;bottom:180px;width:280px;height:40px;font-size:20px; }
+.portrait #result-prev { left:40px;top:auto;bottom:126px;width:65px;height:48px; }
+.portrait #result-page { left:108px;top:auto;bottom:126px;width:144px;height:48px;font-size:16px; }
+.portrait #result-next { left:255px;top:auto;bottom:126px;width:65px;height:48px; }
+.portrait #replay { left:16px;top:auto;bottom:12px;width:188px;height:56px; }
+.portrait #title { left:216px;top:auto;bottom:12px;width:128px;height:56px; }
+.portrait #book-receipt { left:8px;top:8px;width:auto;right:8px;height:auto;bottom:8px; }
+.portrait #book-heading { left:20px;top:24px;width:194px;height:40px;font-size:25px; }
+.portrait #book-count { left:216px;top:24px;width:124px;height:40px;font-size:15px; }
+.portrait #book-scroll { left:18px;right:18px;top:86px;bottom:82px;width:auto;height:auto; }
+.portrait .recipe-grid Button { width:48%;height:48px;margin-right:2%;margin-bottom:8px;font-size:15px; }
+.portrait #book-prev { left:20px;top:auto;bottom:20px;width:65px;height:52px; }
+.portrait #book-page { left:88px;top:auto;bottom:20px;width:82px;height:52px;font-size:16px; }
+.portrait #book-next { left:173px;top:auto;bottom:20px;width:65px;height:52px; }
+.portrait #book-close { left:242px;top:auto;bottom:20px;width:98px;height:52px; }
+.portrait #title-deco-1, .portrait #noren-0 { left:16px;top:22px;width:44px;height:96px; }
+.portrait #noren-0 { font-size:36px; }
+.portrait #title-deco-2, .portrait #noren-1 { left:63px;top:22px;width:44px;height:96px; }
+.portrait #noren-1 { font-size:36px; }
+.portrait #title-deco-3, .portrait #noren-2 { left:110px;top:22px;width:44px;height:96px; }
+.portrait #noren-2 { font-size:36px; }
+.portrait #title-deco-4, .portrait #noren-3 { left:157px;top:22px;width:44px;height:96px; }
+.portrait #noren-3 { font-size:36px; }
+.portrait #title-deco-5, .portrait #noren-4 { left:204px;top:22px;width:44px;height:96px; }
+.portrait #noren-4 { font-size:36px; }
+.portrait #title-deco-6, .portrait #noren-5 { left:251px;top:22px;width:44px;height:96px; }
+.portrait #noren-5 { font-size:36px; }
+.portrait #title-deco-7, .portrait #noren-6 { left:298px;top:22px;width:44px;height:96px; }
+.portrait #noren-6 { font-size:36px; }
+.portrait #cpu-0 { left:30px;top:530px;width:92px;height:52px; }
+.portrait #cpu-1 { left:130px;top:530px;width:92px;height:52px; }
+.portrait #cpu-2 { left:230px;top:530px;width:92px;height:52px; }
+.portrait #hud-dish-0-0 { display:none; }
+.portrait #hud-dish-0-1 { display:none; }
+.portrait #hud-dish-0-2 { display:none; }
+.portrait #result-player-0 { left:0;top:0px;width:120px;height:30px;font-size:18px; }
+.portrait #result-score-0 { left:110px;top:0px;width:140px;height:38px;font-size:30px;-unity-text-align:middle-right; }
+.portrait #result-header-0 { left:0;top:43px;width:250px;height:30px;font-size:14px; }
+.portrait #result-name-0-0 { left:0;top:80px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-0-0 { left:188px;top:80px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-0-1 { left:0;top:114px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-0-1 { left:188px;top:114px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-0-2 { left:0;top:148px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-0-2 { left:188px;top:148px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-0-3 { left:0;top:182px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-0-3 { left:188px;top:182px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-0-4 { left:0;top:216px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-0-4 { left:188px;top:216px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-0-5 { left:0;top:250px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-0-5 { left:188px;top:250px;width:62px;height:34px;font-size:16px; }
+.portrait #hud-dish-1-0 { display:none; }
+.portrait #hud-dish-1-1 { display:none; }
+.portrait #hud-dish-1-2 { display:none; }
+.portrait #result-player-1 { left:0;top:320px;width:120px;height:30px;font-size:18px; }
+.portrait #result-score-1 { left:110px;top:320px;width:140px;height:38px;font-size:30px;-unity-text-align:middle-right; }
+.portrait #result-header-1 { left:0;top:363px;width:250px;height:30px;font-size:14px; }
+.portrait #result-name-1-0 { left:0;top:400px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-1-0 { left:188px;top:400px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-1-1 { left:0;top:434px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-1-1 { left:188px;top:434px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-1-2 { left:0;top:468px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-1-2 { left:188px;top:468px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-1-3 { left:0;top:502px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-1-3 { left:188px;top:502px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-1-4 { left:0;top:536px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-1-4 { left:188px;top:536px;width:62px;height:34px;font-size:16px; }
+.portrait #result-name-1-5 { left:0;top:570px;width:188px;height:34px;font-size:16px; }
+.portrait #result-count-1-5 { left:188px;top:570px;width:62px;height:34px;font-size:16px; }
+.portrait.compact #title-hero { top:132px;height:105px;font-size:32px; }
+.portrait.compact #title-tagline { top:244px;height:40px;font-size:16px; }
+.portrait.compact #title-deco-8 { top:300px;height:270px; }
+.portrait.compact #title-deco-9 { top:358px; }
+.portrait.compact #order-heading { top:314px; }
+.portrait.compact #cpu-heading { top:370px; }
+.portrait.compact #cpu-0, .portrait.compact #cpu-1, .portrait.compact #cpu-2 { top:410px; }
+.portrait.compact #start { top:470px; }
+.portrait.compact #cpu-description { top:535px; }

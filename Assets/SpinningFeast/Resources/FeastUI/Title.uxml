@@ -1,0 +1,34 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+  <Style src="Shared.uss" />
+  <Style src="Responsive.uss" />
+  <ui:VisualElement name="title-screen" class="screen title-screen" picking-mode="Ignore">
+    <ui:VisualElement class="fill-secondary title-node-1" picking-mode="Ignore" name="title-deco-0" />
+    <ui:VisualElement class="fill-accent title-node-2" picking-mode="Ignore" name="title-deco-1" />
+    <ui:Label class="center bold light title-node-3" text="熱" picking-mode="Ignore" name="noren-0" />
+    <ui:VisualElement class="fill-accent title-node-4" picking-mode="Ignore" name="title-deco-2" />
+    <ui:Label class="center bold light title-node-5" text="烈" picking-mode="Ignore" name="noren-1" />
+    <ui:VisualElement class="fill-accent title-node-6" picking-mode="Ignore" name="title-deco-3" />
+    <ui:Label class="center bold light title-node-7" text="電" picking-mode="Ignore" name="noren-2" />
+    <ui:VisualElement class="fill-accent title-node-8" picking-mode="Ignore" name="title-deco-4" />
+    <ui:Label class="center bold light title-node-9" text="卓" picking-mode="Ignore" name="noren-3" />
+    <ui:VisualElement class="fill-accent title-node-10" picking-mode="Ignore" name="title-deco-5" />
+    <ui:Label class="center bold light title-node-11" text="町" picking-mode="Ignore" name="noren-4" />
+    <ui:VisualElement class="fill-accent title-node-12" picking-mode="Ignore" name="title-deco-6" />
+    <ui:Label class="center bold light title-node-13" text="中" picking-mode="Ignore" name="noren-5" />
+    <ui:VisualElement class="fill-accent title-node-14" picking-mode="Ignore" name="title-deco-7" />
+    <ui:Label class="center bold light title-node-15" text="華" picking-mode="Ignore" name="noren-6" />
+    <ui:Label class="bold title-node-16" text="できたて。&#10;大盛上等。" picking-mode="Ignore" name="title-hero" />
+    <ui:Label class="secondary title-node-17" text="炒めて、盛って、いただきます。" picking-mode="Ignore" name="title-tagline" />
+    <ui:VisualElement class="receipt title-node-18" picking-mode="Ignore" name="title-deco-8" />
+    <ui:Label class="center bold title-node-19" text="ご注文票" picking-mode="Ignore" name="order-heading" />
+    <ui:VisualElement class="muted title-node-20" picking-mode="Ignore" name="title-deco-9" />
+    <ui:Label class="center title-node-21" text="CPU の強さ" picking-mode="Ignore" name="cpu-heading" />
+    <ui:Button class="title-node-22" name="cpu-0" text="" />
+    <ui:Button class="title-node-23" name="cpu-1" text="" />
+    <ui:Button class="title-node-24" name="cpu-2" text="" />
+    <ui:Button class="primary title-node-25" name="start" text="いただきます！" />
+    <ui:Label class="center title-node-26" text="ENTER で開店" picking-mode="Ignore" name="start-hint" />
+    <ui:Button class="title-node-27" name="music" text="音楽" />
+    <ui:Label class="center secondary title-node-28" name="cpu-description" text="" picking-mode="Ignore" />
+  </ui:VisualElement>
+</ui:UXML>
