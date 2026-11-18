@@ -58,10 +58,11 @@ namespace SpinningFeast
 #endif
             bool effectsProbe=Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-effects-test")>=0;
             bool gifCapture=Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-gif-capture")>=0;
-            smoke=effectsProbe || gifCapture || Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-smoke")>=0;
+            bool uiSmoke=ReceiptUISmokeRequested;
+            smoke=uiSmoke || effectsProbe || gifCapture || Array.IndexOf(Environment.GetCommandLineArgs(),"-feast-smoke")>=0;
             cpuLevel=smoke?1:FeastCpu.ClampLevel(PlayerPrefs.GetInt("feast.cpu-level",1));
             sim=World.DefaultGameObjectInjectionWorld.GetOrCreateSystemManaged<FeastSystem>();
-            sim.SaveDiscoveries=!smoke;sim.ResetMatch(phase:smoke?MatchPhase.Playing:MatchPhase.Title);
+            sim.SaveDiscoveries=!smoke;sim.ResetMatch(phase:smoke && !uiSmoke?MatchPhase.Playing:MatchPhase.Title);
             sim.Cooked+=OnCooked;sim.Failed+=OnFailed;sim.Served+=OnServed;
             view=gameObject.AddComponent<FeastView>();view.Initialize(sim);
             font=Resources.Load<Font>("NotoSansJP-Regular");
@@ -74,7 +75,8 @@ namespace SpinningFeast
             FeastWebInput_Create(WebInputHandler);
 #endif
             InitializeReceiptUI();
-            if(smoke) StartCoroutine(effectsProbe?EffectsProbe():gifCapture?CaptureCookGif():SmokeRun());
+            if(uiSmoke) StartCoroutine(ReceiptUISmoke());
+            else if(smoke) StartCoroutine(effectsProbe?EffectsProbe():gifCapture?CaptureCookGif():SmokeRun());
         }
         void CountErrors(string condition,string stack,LogType type) {if(type==LogType.Error || type==LogType.Exception || type==LogType.Assert) runtimeErrors++;}
         void OnCooked(int player,int recipe,int servings) {receiptDataDirty=true;flashes[player]=1;failed[player]=false;sound.Cook(player,recipe,servings);}
@@ -96,7 +98,7 @@ namespace SpinningFeast
             view.SetPreview(!codex && state.Phase==MatchPhase.Playing?Cookbook.Find(inputs[activePlayer]+composition):-1,activePlayer);
             if(state.Phase==MatchPhase.Result && !endingPlayed)
             {
-                endingPlayed=true;resultDishes=sim.MatchDishes();resultPage=0;codex=false;
+                endingPlayed=true;receiptDataDirty=true;resultDishes=sim.MatchDishes();resultPage=0;codex=false;
 #if UNITY_WEBGL && !UNITY_EDITOR
                 HideWebInput();
 #endif
