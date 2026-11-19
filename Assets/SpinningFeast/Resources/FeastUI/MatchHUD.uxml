@@ -2,31 +2,44 @@
   <Style src="Shared.uss" />
   <Style src="Responsive.uss" />
   <ui:VisualElement name="hud-screen" class="screen hud-screen" picking-mode="Ignore">
-    <ui:VisualElement class="fill-secondary matchhud-node-1" picking-mode="Ignore" name="hud-deco-0" />
-    <ui:VisualElement class="receipt matchhud-node-2" picking-mode="Ignore" name="hud-deco-1" />
-    <ui:VisualElement class="receipt matchhud-node-3" picking-mode="Ignore" name="hud-deco-2" />
-    <ui:Label class="center bold matchhud-node-4" text="あなた" picking-mode="Ignore" name="hud-static-0" />
+    <ui:VisualElement class="store-rail fill-secondary matchhud-node-1" picking-mode="Ignore" name="hud-deco-0" />
+    <ui:VisualElement class="order-paper player-ticket receipt matchhud-node-2" picking-mode="Ignore" name="hud-deco-1" />
+    <ui:VisualElement class="order-paper rival-ticket receipt matchhud-node-3" picking-mode="Ignore" name="hud-deco-2" />
+    <ui:Label class="printed-key table-serial" text="注文控　01" picking-mode="Ignore" />
+    <ui:Label class="menu-display center bold matchhud-node-4" text="自分" picking-mode="Ignore" name="hud-static-0" />
     <ui:Label class="center bold accent matchhud-node-5" name="score-0" text="" picking-mode="Ignore" />
-    <ui:VisualElement class="muted matchhud-node-6" picking-mode="Ignore" name="hud-deco-3" />
-    <ui:Label class="center matchhud-node-7" text="お品書き" picking-mode="Ignore" name="hud-static-1" />
-    <ui:Label class="center matchhud-node-8" name="hud-dish-0-0" text="" picking-mode="Ignore" />
-    <ui:Label class="center matchhud-node-9" name="hud-dish-0-1" text="" picking-mode="Ignore" />
-    <ui:Label class="center matchhud-node-10" name="hud-dish-0-2" text="" picking-mode="Ignore" />
-    <ui:Label class="center bold matchhud-node-11" text="CPU" picking-mode="Ignore" name="hud-static-2" />
+    <ui:VisualElement class="ticket-perf table-perf muted matchhud-node-6" picking-mode="Ignore" name="hud-deco-3" />
+    <ui:Label class="printed-key center matchhud-node-7" text="お品書き" picking-mode="Ignore" name="hud-static-1" />
+    <ui:Label class="menu-display order-line center matchhud-node-8" name="hud-dish-0-0" text="" picking-mode="Ignore" />
+    <ui:Label class="menu-display order-line center matchhud-node-9" name="hud-dish-0-1" text="" picking-mode="Ignore" />
+    <ui:Label class="menu-display order-line center matchhud-node-10" name="hud-dish-0-2" text="" picking-mode="Ignore" />
+    <ui:Label class="menu-display center bold matchhud-node-11" text="相手" picking-mode="Ignore" name="hud-static-2" />
     <ui:Label class="center bold accent matchhud-node-12" name="score-1" text="" picking-mode="Ignore" />
-    <ui:VisualElement class="muted matchhud-node-13" picking-mode="Ignore" name="hud-deco-4" />
-    <ui:Label class="center matchhud-node-14" text="お品書き" picking-mode="Ignore" name="hud-static-3" />
-    <ui:Label class="center matchhud-node-15" name="hud-dish-1-0" text="" picking-mode="Ignore" />
-    <ui:Label class="center matchhud-node-16" name="hud-dish-1-1" text="" picking-mode="Ignore" />
-    <ui:Label class="center matchhud-node-17" name="hud-dish-1-2" text="" picking-mode="Ignore" />
-    <ui:Label class="center bold accent matchhud-node-18" name="timer" text="" picking-mode="Ignore" />
-    <ui:VisualElement name="input-dock" class="input-dock paper matchhud-node-19" picking-mode="Ignore">
+    <ui:VisualElement class="ticket-perf table-perf muted matchhud-node-13" picking-mode="Ignore" name="hud-deco-4" />
+    <ui:Label class="printed-key center matchhud-node-14" text="お品書き" picking-mode="Ignore" name="hud-static-3" />
+    <ui:Label class="menu-display order-line center matchhud-node-15" name="hud-dish-1-0" text="" picking-mode="Ignore" />
+    <ui:Label class="menu-display order-line center matchhud-node-16" name="hud-dish-1-1" text="" picking-mode="Ignore" />
+    <ui:Label class="menu-display order-line center matchhud-node-17" name="hud-dish-1-2" text="" picking-mode="Ignore" />
+    <ui:Label class="timer-stamp center bold accent matchhud-node-18" name="timer" text="" picking-mode="Ignore" />
+    <ui:Label name="deadline-call" class="menu-display deadline-call" picking-mode="Ignore" usage-hints="DynamicTransform" />
+    <ui:Label name="ordered-stamp" class="menu-display ordered-stamp" text="受 注" picking-mode="Ignore" usage-hints="DynamicTransform" />
+    <ui:VisualElement name="input-dock" class="order-dock input-dock paper matchhud-node-19" picking-mode="Ignore">
       <ui:TextField class="matchhud-node-20" name="dish-input" max-length="48" />
-      <ui:Button class="primary matchhud-node-21" name="submit" text="調理" />
+      <ui:Button class="menu-display stamped-action primary matchhud-node-21" name="submit" text="調理" />
     </ui:VisualElement>
     <ui:VisualElement name="bottom-actions" class="bottom-actions matchhud-node-22" picking-mode="Ignore">
       <ui:Button class="matchhud-node-23" name="book-open" text="図鑑 F1" />
-      <ui:Button class="matchhud-node-24" name="music" text="音楽 F3" />
+      <ui:Button class="settings-gear" name="settings-open" tooltip="設定" />
+    </ui:VisualElement>
+    <ui:VisualElement name="settings-panel" class="settings-overlay">
+      <ui:VisualElement name="settings-dismiss" class="settings-dismiss" />
+      <ui:VisualElement class="settings-paper">
+        <ui:Label class="printed-key settings-kicker" text="町中華 ｜ 店内設定" picking-mode="Ignore" />
+        <ui:Label class="menu-display settings-heading" text="設定" picking-mode="Ignore" />
+        <ui:VisualElement class="ticket-perf settings-rule" picking-mode="Ignore" />
+        <ui:Button name="settings-audio" class="settings-row" text="音：オン" />
+        <ui:Button name="settings-close" class="settings-close" text="閉じる" />
+      </ui:VisualElement>
     </ui:VisualElement>
   </ui:VisualElement>
 </ui:UXML>

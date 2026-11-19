@@ -109,12 +109,6 @@ namespace SpinningFeast
             eatFlights.Add(new EatFlight {Cue=cue,Born=Time.unscaledTime,WordIndex=wordIndex});
             scoreAt[cue.Player]=Time.unscaledTime;
             sound.Eating(cue.Player,cue.Count);
-            Vector2 center=new Vector2(cue.Player==0?310:970,245);
-            for(int i=0;i<36;i++)
-            {
-                float a=i*Mathf.PI*2/36;
-                Emit(center,new Vector2(Mathf.Cos(a)*Random(140,320),Mathf.Sin(a)*Random(90,230)),i%3==0?FeastView.Golden:Actor(cue.Player),Random(7,16),Random(.8f,1.6f),i%4==0?1:3);
-            }
         }
         public void Update()
         {
@@ -187,29 +181,14 @@ namespace SpinningFeast
         }
         static float FadeOut(float age,float start,float end)=>1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(start,end,age));
         public static float EatingSplashOpacity(float age)=>age<0 || age>=2.4f?0:FadeOut(age,1.35f,2.4f);
-        void DrawEatingSplash()
+        void DrawEatingMessage()
         {
             foreach(var f in eatFlights)
             {
                 float age=Time.unscaledTime-f.Born;
                 if(age<0 || age>=2.4f)continue;
-                float fade=EatingSplashOpacity(age);
-                float flash=FadeOut(age,0,.34f)*.23f+fade*.07f;
-                Color actor=Actor(f.Cue.Player),gold=FeastView.Golden;
-                Fill(new Rect(0,0,1280,800),new Color(actor.r,actor.g,actor.b,flash));
-                Fill(new Rect(0,0,1280,12),new Color(gold.r,gold.g,gold.b,fade*.75f));
-                Fill(new Rect(0,788,1280,12),new Color(gold.r,gold.g,gold.b,fade*.75f));
-                Fill(new Rect(0,0,12,800),new Color(actor.r,actor.g,actor.b,fade*.75f));
-                Fill(new Rect(1268,0,12,800),new Color(actor.r,actor.g,actor.b,fade*.75f));
-                for(int i=0;i<96;i++)
-                {
-                    float x=(i*197+age*(i%2==0?110:-95))%1280;
-                    float y=(i*331+age*(i%3==0?170:-115))%800;
-                    if(x<0)x+=1280;if(y<0)y+=800;
-                    Color sparkle=i%3==0?gold:actor;sparkle.a=fade*(i%5==0?.75f:.55f);
-                    Sprite(new Vector2(x,y),7+(i%5)*3,sparkle,i%4==0?1:3,age*110+i*31);
-                }
-                float wordOpacity=Mathf.Clamp01(age/.18f)*FadeOut(age,1.35f,2.4f);
+                Color actor=Actor(f.Cue.Player);
+                float wordOpacity=Mathf.Clamp01(age/.18f)*EatingSplashOpacity(age);
                 Color wordColor=f.WordIndex%3==0
                     ?new Color(actor.r,actor.g,actor.b,wordOpacity)
                     :new Color(1,.96f,.72f,wordOpacity);
@@ -243,7 +222,7 @@ namespace SpinningFeast
                 }
                 return;
             }
-            DrawEatingSplash();
+            DrawEatingMessage();
             if(!bookOpen)
             {
                 foreach(var f in flights)

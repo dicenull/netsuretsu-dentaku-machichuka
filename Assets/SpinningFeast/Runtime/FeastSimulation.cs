@@ -65,6 +65,15 @@ namespace SpinningFeast
         public bool RainEnabled = true;
         public bool AutoEatEnabled = true;
         public bool SaveDiscoveries = true;
+        public bool IsPaused { get; private set; }
+        public void SetPaused(bool paused)
+        {
+            if(IsPaused==paused)return;
+            // Finish the last simulated step, not a future one. Other Unity
+            // systems, UI and input keep their ordinary clock while paused.
+            if(paused)Dependency.Complete();
+            IsPaused=paused;
+        }
         public readonly bool[] Discovered = new bool[Cookbook.All.Length];
         public int SuccessfulCommands { get; private set; }
         public int RejectedCommands { get; private set; }
@@ -86,7 +95,7 @@ namespace SpinningFeast
         }
         public void ResetMatch(uint seed = 20261104, int initial = 10000, float seconds = 120, MatchPhase phase = MatchPhase.Playing)
         {
-            Dependency.Complete(); EntityManager.DestroyEntity(owned);
+            Dependency.Complete(); IsPaused=false; EntityManager.DestroyEntity(owned);
             random = new Unity.Mathematics.Random(seed == 0 ? 1u : seed);
             nextEpoch++; rain = 0; nextEatAt=2f; openingTotal=phase==MatchPhase.Countdown?math.max(0,initial):0; openingSpawned=0; SuccessfulCommands = RejectedCommands = 0;
             match = EntityManager.CreateEntity(typeof(MatchState));
@@ -108,7 +117,7 @@ namespace SpinningFeast
         }
         public void Submit(int player, int recipe, int sequence, int epoch)
         {
-            if (!EntityManager.Exists(match) || State.Phase != MatchPhase.Playing) return;
+            if (IsPaused || !EntityManager.Exists(match) || State.Phase != MatchPhase.Playing) return;
             EntityManager.GetBuffer<CookCommand>(match).Add(new CookCommand { Player = player, Recipe = recipe, Sequence = sequence, Epoch = epoch });
         }
         public int[] Inventory()
@@ -163,7 +172,7 @@ namespace SpinningFeast
 
         protected override void OnUpdate()
         {
-            if (!EntityManager.Exists(match)) return;
+            if (IsPaused || !EntityManager.Exists(match)) return;
             Dependency.Complete();
             var state = State; float dt = SystemAPI.Time.DeltaTime; bool openingFinished=false;
             state.Angle += dt * RotationSpeed;

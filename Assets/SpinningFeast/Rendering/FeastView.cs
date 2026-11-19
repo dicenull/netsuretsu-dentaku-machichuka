@@ -63,6 +63,10 @@ namespace SpinningFeast
         World queryWorld;
         Transform turntable;
         Camera viewCamera;
+        static readonly Vector3 ViewTarget=new Vector3(0,.3f,0);
+        Vector3 authoredCameraPosition;
+        float authoredCameraDistance;
+        bool portraitProjection;
         MaterialPropertyBlock ghostProps;
         readonly List<DishTag> dishTags=new List<DishTag>();
         public System.Collections.Generic.IReadOnlyList<DishTag> DishTags => dishTags;
@@ -153,8 +157,10 @@ namespace SpinningFeast
         void BuildRoom()
         {
             var cameraObject=new GameObject("Fixed banquet camera");cameraObject.transform.SetParent(transform);viewCamera=cameraObject.AddComponent<Camera>();
-            viewCamera.transform.position=new Vector3(0,13.6f,-17.8f);viewCamera.transform.LookAt(new Vector3(0,.3f,0));viewCamera.orthographic=true;viewCamera.orthographicSize=ArenaGeometry.CameraHalfHeight;
+            viewCamera.transform.position=new Vector3(0,13.6f,-17.8f);viewCamera.transform.LookAt(ViewTarget);viewCamera.orthographic=true;viewCamera.orthographicSize=ArenaGeometry.CameraHalfHeight;
             viewCamera.backgroundColor=new Color(.045f,.11f,.13f);viewCamera.clearFlags=CameraClearFlags.SolidColor;viewCamera.nearClipPlane=.1f;viewCamera.farClipPlane=90;
+            authoredCameraPosition=viewCamera.transform.position;
+            authoredCameraDistance=Vector3.Distance(authoredCameraPosition,ViewTarget);
             cameraObject.AddComponent<AudioListener>();
             var floor=Mat(new Color(.055f,.15f,.17f)); var red=Mat(new Color(.51f,.115f,.075f)); var dark=Mat(new Color(.17f,.055f,.035f));
             Shape("Restaurant floor",PrimitiveType.Cube,new Vector3(0,-1.4f,0),new Vector3(90,.2f,90),floor);
@@ -219,20 +225,47 @@ namespace SpinningFeast
             int previousHover=HasHoveredIngredient?(int)HoveredIngredient:-1;
             RefreshPreview(state);
             turntable.localRotation=Quaternion.Euler(0,state.Angle*Mathf.Rad2Deg,0);
-            // Preserve the fixed angle while widening the view as platters rise
-            // into additional tiers. This also keeps the full table in frame.
-            float halfHeight=Mathf.Max(ArenaGeometry.CameraHalfHeight,(ArenaGeometry.TableRadius+.6f)/viewCamera.aspect);
-            Vector3 viewTarget=new Vector3(0,.3f,0),cameraUp=viewCamera.transform.up,cameraRight=viewCamera.transform.right;
+            // Preserve wide framing. Compose the mobile tabletop independently of the HUD.
+            var viewport=FeastKeyboardViewport.Read();
+            bool portrait=viewport.Portrait;
+            float halfHeight=portrait?0:Mathf.Max(ArenaGeometry.CameraHalfHeight,(ArenaGeometry.TableRadius+.6f)/viewCamera.aspect);
+            Vector3 cameraUp=viewCamera.transform.up,cameraRight=viewCamera.transform.right,cameraForward=viewCamera.transform.forward;
+            float minDepth=-FeastPortraitFrame.ArenaExtent,maxDepth=FeastPortraitFrame.ArenaExtent;
             using(var plateEntities=plateQuery.ToEntityArray(Allocator.Temp))foreach(Entity plateEntity in plateEntities)
             {
                 var plate=em.GetComponentData<Plate>(plateEntity);
                 var stock=em.GetComponentData<Stock>(plateEntity);
                 if(stock.Quantity+plate.Incoming<=0)continue;
                 Vector3 plateCenter=FeastSystem.PlatePosition(plate.Slot,state.Angle);
-                Vector3 offset=plateCenter+Vector3.up*.85f-viewTarget;
-                halfHeight=Mathf.Max(halfHeight,Mathf.Abs(Vector3.Dot(offset,cameraUp))+1.5f);
-                halfHeight=Mathf.Max(halfHeight,(Mathf.Abs(Vector3.Dot(offset,cameraRight))+1.5f)/viewCamera.aspect);
+                Vector3 offset=plateCenter+Vector3.up*.85f-ViewTarget;
+                float up=Vector3.Dot(offset,cameraUp),right=Vector3.Dot(offset,cameraRight);
+                if(portrait)
+                {
+                    // High occupied plates still have valid depth, without shrinking the tabletop.
+                    float depth=Vector3.Dot(offset,cameraForward);
+                    minDepth=Mathf.Min(minDepth,depth-4);maxDepth=Mathf.Max(maxDepth,depth+4);
+                }
+                else
+                {
+                    halfHeight=Mathf.Max(halfHeight,Mathf.Abs(up)+1.5f);
+                    halfHeight=Mathf.Max(halfHeight,(Mathf.Abs(right)+1.5f)/viewCamera.aspect);
+                }
             }
+            if(portrait)
+            {
+                float tableHalf=FeastPortraitFrame.TableRadius*Mathf.Sqrt(cameraUp.x*cameraUp.x+cameraUp.z*cameraUp.z)+.5f;
+                halfHeight=FeastPortraitFrame.FrameTable(Screen.width,Screen.height,viewport.LayoutHeight,
+                    viewport.SafeArea,tableHalf,out Vector2 shift);
+                // Camera-plane translation keeps the real projection and touch rays aligned.
+                float recede=Mathf.Max(0,.5f-authoredCameraDistance-minDepth);
+                viewCamera.transform.position=authoredCameraPosition+cameraRight*shift.x+cameraUp*shift.y-cameraForward*recede;
+                viewCamera.farClipPlane=Mathf.Max(90,authoredCameraDistance+maxDepth+recede+2);
+            }
+            else if(portraitProjection)
+            {
+                viewCamera.transform.position=authoredCameraPosition;viewCamera.farClipPlane=90;
+            }
+            portraitProjection=portrait;
             viewCamera.orthographicSize=halfHeight;
             for(int player=0;player<2;player++)
             {

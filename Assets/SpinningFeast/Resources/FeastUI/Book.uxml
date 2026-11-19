@@ -2,36 +2,37 @@
   <Style src="Shared.uss" />
   <Style src="Responsive.uss" />
   <ui:VisualElement name="book-screen" class="screen book-screen" picking-mode="Ignore">
-    <ui:VisualElement class="receipt book-node-1" picking-mode="Ignore" name="book-receipt" />
-    <ui:Label class="bold book-node-2" name="book-heading" text="料理図鑑" picking-mode="Ignore" />
-    <ui:Label class="right book-node-3" name="book-count" text="" picking-mode="Ignore" />
+    <ui:VisualElement class="order-paper receipt book-node-1" picking-mode="Ignore" name="book-receipt" />
+    <ui:Label class="menu-display bold book-node-2" name="book-heading" text="料理図鑑" picking-mode="Ignore" />
+    <ui:Label class="printed-key right book-node-3" name="book-count" text="" picking-mode="Ignore" />
+    <ui:VisualElement class="ticket-perf book-perf" picking-mode="Ignore" />
     <ui:ScrollView name="book-scroll" mode="Vertical" class="book-node-4">
       <ui:VisualElement name="recipe-grid" class="recipe-grid" picking-mode="Ignore">
-        <ui:Button name="recipe-0" class="recipe" text="" />
-        <ui:Button name="recipe-1" class="recipe" text="" />
-        <ui:Button name="recipe-2" class="recipe" text="" />
-        <ui:Button name="recipe-3" class="recipe" text="" />
-        <ui:Button name="recipe-4" class="recipe" text="" />
-        <ui:Button name="recipe-5" class="recipe" text="" />
-        <ui:Button name="recipe-6" class="recipe" text="" />
-        <ui:Button name="recipe-7" class="recipe" text="" />
-        <ui:Button name="recipe-8" class="recipe" text="" />
-        <ui:Button name="recipe-9" class="recipe" text="" />
-        <ui:Button name="recipe-10" class="recipe" text="" />
-        <ui:Button name="recipe-11" class="recipe" text="" />
-        <ui:Button name="recipe-12" class="recipe" text="" />
-        <ui:Button name="recipe-13" class="recipe" text="" />
-        <ui:Button name="recipe-14" class="recipe" text="" />
-        <ui:Button name="recipe-15" class="recipe" text="" />
-        <ui:Button name="recipe-16" class="recipe" text="" />
-        <ui:Button name="recipe-17" class="recipe" text="" />
-        <ui:Button name="recipe-18" class="recipe" text="" />
-        <ui:Button name="recipe-19" class="recipe" text="" />
+        <ui:Button name="recipe-0" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-1" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-2" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-3" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-4" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-5" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-6" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-7" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-8" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-9" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-10" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-11" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-12" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-13" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-14" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-15" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-16" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-17" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-18" class="menu-display menu-item recipe" text="" />
+        <ui:Button name="recipe-19" class="menu-display menu-item recipe" text="" />
       </ui:VisualElement>
     </ui:ScrollView>
     <ui:Button class="book-node-26" name="book-prev" text="前" />
     <ui:Label class="center book-node-27" name="book-page" text="" picking-mode="Ignore" />
     <ui:Button class="book-node-28" name="book-next" text="次" />
-    <ui:Button class="book-node-29" name="book-close" text="閉じる" />
+    <ui:Button class="secondary-action book-node-29" name="book-close" text="閉じる" />
   </ui:VisualElement>
 </ui:UXML>

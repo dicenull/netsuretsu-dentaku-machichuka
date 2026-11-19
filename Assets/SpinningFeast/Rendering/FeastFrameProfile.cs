@@ -51,7 +51,7 @@ namespace SpinningFeast
         }
         void LateUpdate()
         {
-            if(simulation==null || SystemInfo.graphicsDeviceType==GraphicsDeviceType.Null)return;
+            if(simulation==null || simulation.IsPaused || SystemInfo.graphicsDeviceType==GraphicsDeviceType.Null)return;
             var state=simulation.State;
             if(state.Epoch!=epoch)
             {

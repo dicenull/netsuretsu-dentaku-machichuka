@@ -22,8 +22,6 @@ namespace SpinningFeast
         const int activePlayer=0;
         int bookPage,cpuLevel=1,cpuTurn;
         const int BookPageSize=20;
-        const int ResultPageSize=6;
-        int resultPage;
         CookedDish[] resultDishes=Array.Empty<CookedDish>();
         bool codex, smoke;
         float botAt=5;
@@ -83,7 +81,7 @@ namespace SpinningFeast
             else if(smoke) StartCoroutine(effectsProbe?EffectsProbe():gifCapture?CaptureCookGif():SmokeRun());
         }
         void CountErrors(string condition,string stack,LogType type) {if(type==LogType.Error || type==LogType.Exception || type==LogType.Assert) runtimeErrors++;}
-        void OnCooked(int player,int recipe,int servings) {receiptDataDirty=true;flashes[player]=1;failed[player]=false;sound.Cook(player,recipe,servings);}
+        void OnCooked(int player,int recipe,int servings) {receiptDataDirty=true;flashes[player]=1;failed[player]=false;PlayReceiptStamp(player);sound.Cook(player,recipe,servings);}
         void OnFailed(int player) {flashes[player]=.7f;failed[player]=true;sound.Missing(player);}
         void OnServed(int player,int recipe,int servings) {sound.Serve(player,recipe,servings);}
         void Update()
@@ -91,7 +89,7 @@ namespace SpinningFeast
             if(sim==null) return;
             hud?.Update();
             string composition=CurrentComposition;
-            if(!codex && hud!=null)hud.ObserveInput(activePlayer,inputs[activePlayer]+composition);
+            if(!sim.IsPaused && hud!=null)hud.ObserveInput(activePlayer,inputs[activePlayer]+composition);
 #if !UNITY_WEBGL || UNITY_EDITOR
             if(!string.IsNullOrEmpty(composition) || !string.IsNullOrEmpty(previousComposition)) compositionAt=Time.unscaledTime;
             previousComposition=composition;
@@ -110,15 +108,18 @@ namespace SpinningFeast
             view.SetPreview(previewLookupRecipe,activePlayer);
             if(state.Phase==MatchPhase.Result && !endingPlayed)
             {
-                endingPlayed=true;receiptDataDirty=true;resultDishes=sim.MatchDishes();resultPage=0;codex=false;
+                endingPlayed=true;receiptDataDirty=true;resultDishes=sim.MatchDishes();codex=false;
 #if UNITY_WEBGL && !UNITY_EDITOR
                 HideWebInput();
 #endif
                 SetDishInput("");inputs[1]="";wordBursts.Clear();GUIUtility.keyboardControl=0;sound.End();
             }
-            shownScores[0]=Mathf.MoveTowards(shownScores[0],state.CyanScore,Time.deltaTime*Mathf.Max(800,(state.CyanScore-shownScores[0])*8));
-            shownScores[1]=Mathf.MoveTowards(shownScores[1],state.OrangeScore,Time.deltaTime*Mathf.Max(800,(state.OrangeScore-shownScores[1])*8));
-            if(!smoke && state.Phase==MatchPhase.Playing && state.Elapsed>=botAt)
+            if(!sim.IsPaused)
+            {
+                shownScores[0]=Mathf.MoveTowards(shownScores[0],state.CyanScore,Time.deltaTime*Mathf.Max(800,(state.CyanScore-shownScores[0])*8));
+                shownScores[1]=Mathf.MoveTowards(shownScores[1],state.OrangeScore,Time.deltaTime*Mathf.Max(800,(state.OrangeScore-shownScores[1])*8));
+            }
+            if(!smoke && !sim.IsPaused && state.Phase==MatchPhase.Playing && state.Elapsed>=botAt)
             {
                 int chosen=FeastCpu.Choose(cpuLevel,sim.Inventory(),cpuTurn++);
                 if(chosen>=0) Send(1,chosen);
@@ -135,7 +136,7 @@ namespace SpinningFeast
 
         public void Send(int player,int recipe,string typedText=null)
         {
-            if(sim.State.Phase!=MatchPhase.Playing || sim.State.Remaining<=0) return;
+            if(sim.IsPaused || sim.State.Phase!=MatchPhase.Playing || sim.State.Remaining<=0) return;
             string words=typedText ?? (recipe>=0 && recipe<Cookbook.All.Length?Cookbook.All[recipe].Name:"");
             if(!string.IsNullOrWhiteSpace(words))
             {
@@ -150,7 +151,7 @@ namespace SpinningFeast
         {
             sequence[0]=sequence[1]=0;shownScores[0]=shownScores[1]=0;
             SetDishInput("");inputs[1]="";flashes[0]=flashes[1]=0;failed[0]=failed[1]=false;
-            resultDishes=Array.Empty<CookedDish>();resultPage=0;
+            resultDishes=Array.Empty<CookedDish>();ResetCheckout();
             cpuTurn=0;botAt=FeastCpu.FirstMove(cpuLevel);codex=false;bookPage=0;wordBursts.Clear();endingPlayed=false;
 #if !UNITY_WEBGL || UNITY_EDITOR
             previousComposition="";compositionAt=Time.unscaledTime;
@@ -183,15 +184,12 @@ namespace SpinningFeast
             }
             else if(key==KeyCode.F1)
             {
-                codex=!codex;sound.Page();
-#if UNITY_WEBGL && !UNITY_EDITOR
-                if(codex)HideWebInput();
-#endif
+                SetReceiptBook(!codex);
             }
             else if(key==KeyCode.F5)BeginMatch();
             else if(key==KeyCode.Escape)
             {
-                if(codex)codex=false;
+                if(codex)SetReceiptBook(false,false);
                 else SetDishInput("");
             }
             else if((key==KeyCode.Return || key==KeyCode.KeypadEnter) && !codex)

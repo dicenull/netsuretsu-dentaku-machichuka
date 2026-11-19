@@ -6,6 +6,8 @@ namespace SpinningFeast
     public sealed class FeastSound : MonoBehaviour
     {
         const int VoiceCount=12;
+        // Keep the previous BGM preference so players who had opted for silence stay muted.
+        const string AudioPreference="feast.music.enabled";
         public static readonly string[] CueNames={"success_small","success_medium","success_large","missing","submit","serve","start","finish","typing","chain","discovery","tick","tick_final","page","select"};
         public static readonly string[] MusicNames={"music_play","music_rush","music_menu"};
         readonly AudioSource[] voices=new AudioSource[VoiceCount];
@@ -21,7 +23,8 @@ namespace SpinningFeast
         MatchPhase musicPhase=MatchPhase.Title;
         float urgency,endedAt=-100,musicDuck=1;
         bool resultBed;
-        public bool MusicEnabled {get;private set;}=true;
+        public bool AudioEnabled {get;private set;}=true;
+        public bool MusicEnabled => AudioEnabled;
         public int CountdownTicks {get;private set;}
         public bool MusicPlaying => musicMain!=null && musicMain.isPlaying;
         public float MusicUrgency => urgency;
@@ -35,7 +38,7 @@ namespace SpinningFeast
                 voices[i]=gameObject.AddComponent<AudioSource>();voices[i].playOnAwake=false;
                 voices[i].spatialBlend=0;voices[i].dopplerLevel=0;voices[i].loop=false;
             }
-            MusicEnabled=PlayerPrefs.GetInt("feast.music.enabled",1)!=0;
+            AudioEnabled=PlayerPrefs.GetInt(AudioPreference,1)!=0;
             musicPlay=Load("music_play");musicRush=Load("music_rush");musicMenu=Load("music_menu");
             musicMain=gameObject.AddComponent<AudioSource>();musicLayer=gameObject.AddComponent<AudioSource>();
             foreach(var track in new[]{musicMain,musicLayer}){track.playOnAwake=false;track.loop=true;track.spatialBlend=0;track.dopplerLevel=0;}
@@ -49,7 +52,7 @@ namespace SpinningFeast
         }
         void Play(AudioClip clip,int player,float gain=1,float pitch=1)
         {
-            if(!clip)return;
+            if(!AudioEnabled || !clip)return;
             int slot=-1;double oldest=double.MaxValue;
             for(int i=0;i<VoiceCount;i++)
             {
@@ -73,20 +76,36 @@ namespace SpinningFeast
         }
         void Update()
         {
-            Balance();
+            if(AudioEnabled)Balance();
             if(musicPhase==MatchPhase.Result && !resultBed && Time.unscaledTime-endedAt>1.8f)
             {
                 resultBed=true;musicMain.Stop();musicMain.clip=musicMenu;musicMain.volume=0;musicMain.Play();
             }
-            float baseGain=(musicPhase==MatchPhase.Playing?.14f:musicPhase==MatchPhase.Title?.12f:resultBed?.09f:0)*musicDuck*(MusicEnabled?1:0);
+            float baseGain=(musicPhase==MatchPhase.Playing?.14f:musicPhase==MatchPhase.Title?.12f:resultBed?.09f:0)*musicDuck*(AudioEnabled?1:0);
             musicMain.volume=Mathf.MoveTowards(musicMain.volume,baseGain,Time.unscaledDeltaTime*.12f);
-            float layerGain=musicPhase==MatchPhase.Playing && MusicEnabled?urgency*.14f*musicDuck:0;
+            float layerGain=musicPhase==MatchPhase.Playing && AudioEnabled?urgency*.14f*musicDuck:0;
             musicLayer.volume=Mathf.MoveTowards(musicLayer.volume,layerGain,Time.unscaledDeltaTime*.06f);
         }
-        public void ToggleMusic()
+        public void ToggleMusic()=>ToggleAudio();
+        public void ToggleAudio(bool persist=true)
         {
-            MusicEnabled=!MusicEnabled;PlayerPrefs.SetInt("feast.music.enabled",MusicEnabled?1:0);
-            if(!MusicEnabled){musicMain.volume=0;musicLayer.volume=0;}
+            AudioEnabled=!AudioEnabled;
+            if(!AudioEnabled)
+            {
+                // Stop current one-shots and avoid queueing new ones until sound comes back.
+                foreach(var voice in voices)
+                {
+                    voice.volume=0;voice.Stop();voice.clip=null;
+                }
+                musicDuck=1;
+                // Leave the two loops synchronized and advancing silently across phase changes.
+                musicMain.volume=musicLayer.volume=0;
+            }
+            if(persist)
+            {
+                PlayerPrefs.SetInt(AudioPreference,AudioEnabled?1:0);
+                PlayerPrefs.Save();
+            }
         }
         public void SetRemaining(float seconds)
         {urgency=Mathf.Clamp01((30-seconds)/20);}

@@ -102,8 +102,40 @@ namespace SpinningFeast.Editor
             }
             if(Resources.Load<AudioClip>("Audio/music_play").samples!=Resources.Load<AudioClip>("Audio/music_rush").samples)throw new Exception("Adaptive music layers must have identical loop lengths");
             report.AppendLine("Adaptive music loops have identical sample counts.");
+            CheckMasterSoundToggle();
+            report.AppendLine("Master sound stops current cues, silences both BGM tracks, suppresses new cues, and allows new cues after unmuting.");
             Directory.CreateDirectory("Docs");File.WriteAllText("Docs/audio-import-tests.txt",report.ToString()+"PASS: "+FeastSound.CueNames.Length+" audio cues and "+FeastSound.MusicNames.Length+" music loops imported.\n");
             Debug.Log("FEAST_AUDIO_PASS");
+        }
+        static void CheckMasterSoundToggle()
+        {
+            var host=new GameObject("Audio toggle validation");
+            try
+            {
+                var sound=host.AddComponent<FeastSound>();sound.Initialize();
+                if(!sound.AudioEnabled)sound.ToggleAudio(persist:false);
+                var sources=host.GetComponents<AudioSource>();
+                sound.Select();
+                bool cueAssigned=false;
+                foreach(var source in sources)
+                {
+                    if(source.loop)source.volume=.14f; // Represent BGM already faded in.
+                    else cueAssigned|=source.clip!=null;
+                }
+                if(!cueAssigned)throw new Exception("Enabled audio did not assign a test cue.");
+                sound.ToggleAudio(persist:false);
+                sound.Select();
+                foreach(var source in sources)
+                {
+                    if(source.volume!=0)throw new Exception("Master mute left a nonzero source volume.");
+                    if(!source.loop && (source.isPlaying || source.clip!=null))throw new Exception("Master mute left an active or queued sound cue.");
+                }
+                sound.ToggleAudio(persist:false);
+                cueAssigned=false;sound.Select();
+                foreach(var source in sources)if(!source.loop && source.clip!=null)cueAssigned=true;
+                if(!sound.AudioEnabled || !cueAssigned)throw new Exception("Unmuting did not allow a new sound cue.");
+            }
+            finally {UnityEngine.Object.DestroyImmediate(host);}
         }
         public static void RunVisualDataTests()
         {

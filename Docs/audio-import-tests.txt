@@ -17,4 +17,5 @@ music_play: 2 channels, 48000 Hz, 17.14 sec
 music_rush: 2 channels, 48000 Hz, 17.14 sec
 music_menu: 2 channels, 48000 Hz, 21.82 sec
 Adaptive music loops have identical sample counts.
+Master sound stops current cues, silences both BGM tracks, suppresses new cues, and allows new cues after unmuting.
 PASS: 15 audio cues and 3 music loops imported.

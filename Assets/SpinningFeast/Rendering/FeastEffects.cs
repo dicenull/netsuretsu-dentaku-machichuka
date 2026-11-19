@@ -147,21 +147,22 @@ namespace SpinningFeast
             actorAt[cue.Player]=Time.time;actorStrength[cue.Player]=1.2f;
             Vector3 position=FeastSystem.PlatePosition(cue.Slot,simulation.State.Angle);
             Color actor=Actor(cue.Player);
-            Ring(cue.Slot,position,FeastView.Golden,22f,1.8f);
-            Ring(cue.Slot,position,actor,15f,1.5f);
-            Ring(cue.Slot,position,new Color(1,.97f,.7f),8f,1.1f);
-            Burst(position+Vector3.up*.6f,actor,150,2.7f);
-            Celebration(position+Vector3.up*.5f,actor,3);
-            for(int jet=0;jet<8;jet++)
+            Vector3 origin=position+Vector3.up*.55f;
+            // A quick plate-local cracker replaces the old fullscreen frame. The motes
+            // use the shared capped batch, with no new renderers or textures.
+            int strips=Mathf.Clamp(24+cue.Count/2,24,48);
+            float offset=Random(0,Mathf.PI*2);
+            for(int i=0;i<strips;i++)
             {
-                float a=jet*Mathf.PI/4;
-                Vector3 around=new Vector3(Mathf.Sin(a)*ArenaGeometry.TableRadius*.68f,1.3f,Mathf.Cos(a)*ArenaGeometry.TableRadius*.68f);
-                Burst(around,jet%2==0?actor:FeastView.Golden,30,2.3f);
-            }
-            for(int i=0;i<96;i++)
-            {
-                float a=i*Mathf.PI*2/96;
-                Add(new Mote {Position=position+Vector3.up*.5f,Velocity=new Vector3(Mathf.Sin(a)*Random(5f,13f),Random(6f,14f),Mathf.Cos(a)*Random(5f,13f)),Color=i%3==0?FeastView.Golden:actor,Life=Random(1.4f,2.3f),Size=Random(.10f,.24f),Kind=i%4==0?1:3,Angle=a,Spin=Random(-9f,9f),Gravity=-8f});
+                float angle=offset+i*Mathf.PI*2/strips;
+                float speed=Random(2.8f,7.4f);
+                Add(new Mote {
+                    Position=origin,
+                    Velocity=new Vector3(Mathf.Sin(angle)*speed,Random(3.6f,8.2f),Mathf.Cos(angle)*speed),
+                    Color=i%3==0?FeastView.Golden:actor,
+                    Life=Random(.55f,1.1f),Size=Random(.12f,.26f),Kind=3,Aspect=Random(1.5f,2.7f),
+                    Angle=angle,Spin=Random(-13f,13f),Gravity=-10f
+                });
             }
         }
         public float LanternPulse(int player)

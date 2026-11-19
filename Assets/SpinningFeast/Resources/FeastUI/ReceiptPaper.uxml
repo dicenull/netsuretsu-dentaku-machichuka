@@ -1,0 +1,19 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+  <ui:VisualElement class="checkout-paper" picking-mode="Ignore">
+    <ui:VisualElement class="paper-tear paper-tear-top" picking-mode="Ignore" />
+    <ui:VisualElement class="paper-contents" picking-mode="Ignore">
+      <ui:Label name="checkout-serial" class="printed-key center checkout-serial" picking-mode="Ignore" />
+      <ui:Label class="menu-display center checkout-heading" text="会計伝票" picking-mode="Ignore" />
+      <ui:Label name="checkout-outcome" class="center checkout-outcome" picking-mode="Ignore" />
+      <ui:VisualElement class="checkout-scoreline" picking-mode="Ignore">
+        <ui:Label name="checkout-owner" class="menu-display" picking-mode="Ignore" />
+        <ui:Label name="checkout-score" class="bold accent right checkout-score" picking-mode="Ignore" />
+      </ui:VisualElement>
+      <ui:Label class="secondary checkout-subheading" text="お品書き" picking-mode="Ignore" />
+      <ui:VisualElement name="checkout-dishes" class="checkout-dishes" picking-mode="Ignore" />
+      <ui:Label name="checkout-total" class="bold right checkout-total" picking-mode="Ignore" />
+      <ui:VisualElement class="checkout-barcode" picking-mode="Ignore" />
+    </ui:VisualElement>
+    <ui:VisualElement class="paper-tear" picking-mode="Ignore" />
+  </ui:VisualElement>
+</ui:UXML>
